@@ -1,0 +1,13 @@
+langgraph
+typing
+dotenv
+langchain_community
+langchain_core
+pydantic
+langchain_groq
+langgraph_supervisor
+langchain_experimental
+snscrape
+langchain_huggingface
+langchain_chroma
+fastapi
