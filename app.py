@@ -2,6 +2,10 @@ import streamlit as st
 import time
 from typing import List
 
+import os
+# To remove the system has reached its maximum watch limit
+os.environ['STREAMLIT_SERVER_FILE_WATCHER_TYPE'] = 'none'
+
 # Import your existing bot class
 try:
     from bot import SimpleContentCreator
