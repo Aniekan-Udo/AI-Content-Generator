@@ -321,12 +321,12 @@ def main():
                             # Display the content
                             st.subheader("Your Generated Content")
                             st.text_area(
-                                "Generated Content", 
+                                "Generated Content Output", # Add a non-empty, descriptive label
                                 content, 
                                 height=500, 
                                 key="generated_content",
                                 help="Copy this content or use the download button below",
-                                label_visibility="collapsed"  # Hides the label visually
+                                label_visibility="collapsed" # This hides the descriptive label visually
                             )
                             
                             # Download button
