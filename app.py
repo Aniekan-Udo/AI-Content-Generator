@@ -1,6 +1,7 @@
 # app.py
 
 import streamlit as st
+#import secrets
 import os
 import tempfile
 import time
@@ -8,9 +9,9 @@ from typing import List
 from langchain_community.document_loaders import WebBaseLoader, PyPDFLoader, TextLoader
 from langchain_community.document_loaders.word_document import UnstructuredWordDocumentLoader
 from langchain_core.documents import Document
-from bot import create_content_system, SimpleContentCreator, groq_api_key
+from bot import create_content_system, SimpleContentCreator #, groq_api_key
 
-
+groq_api_key = st.secrets.get("GROQ_API_KEY") 
 # --- Helper Function for Data Processing (Consolidated and Fixed) ---
 def process_project_data(project_name, urls_text, uploaded_files, extra_text, creator: SimpleContentCreator):
     

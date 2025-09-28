@@ -15,25 +15,19 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 # IMPORTANT: Replace with environment variable loading in a real application
 groq_api_key = os.getenv("GROQ_API_KEY")
 
-# bot.py (around line 23)
 
 class SimpleContentCreator:
     def __init__(self, groq_api_key: str):
-        # ... existing LLM and splitter setup ...
+         self.llm = ChatGroq(model="llama-3.3-70b-versatile", api_key=groq_api_key)
+         self.embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2",
+            model_kwargs={'device': 'cpu'})
+         self.text_splitter = RecursiveCharacterTextSplitter(
+             chunk_size=1000,
+             chunk_overlap=200
+         )
 
-        # --- FIX: Explicitly set device to 'cpu' to resolve NotImplementedError ---
-        self.embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-mpnet-base-v2",
-            model_kwargs={'device': 'cpu'} 
-        )
-        # --- END FIX ---
-        
-        self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200
-        )
-        self.project_name = None
-        self.vector_store = None
+         self.project_name = None
+         self.vector_store = None
         
     # --- MODIFIED FUNCTION: Accepts pre-split documents ---
     def setup_project(self, project_name: str, all_documents: List[Document]):
