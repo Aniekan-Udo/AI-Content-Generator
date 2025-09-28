@@ -23,7 +23,7 @@ class SimpleContentCreator:
         self.project_name = None
         self.vector_store = None
         
-    def setup_project(self, project_name: str, urls: List[str], docs_path: str = None):
+    def setup_project(self, project_name: str, urls: List[str], whitepaper_path: str = None):
         """Setup project by loading documents from specified URLs and whitepaper"""
         print(f"Setting up project: {project_name}")
         print(f"Processing {len(urls)} URLs...")
@@ -44,10 +44,10 @@ class SimpleContentCreator:
                 print(f"  Error loading {url}: {str(e)}")
             
         # Process whitepaper if provided
-        if docs_path and os.path.exists(docs_path):
-            print(f"Processing whitepaper: {docs_path}")
+        if whitepaper_path and os.path.exists(whitepaper_path):
+            print(f"Processing whitepaper: {whitepaper_path}")
             try:
-                loader = TextLoader(docs_path)
+                loader = TextLoader(whitepaper_path)
                 docs = loader.load()
                 chunks = self.text_splitter.split_documents(docs)
                 all_documents.extend(chunks)
@@ -131,8 +131,8 @@ class SimpleContentCreator:
 CRITICAL CREATIVITY MANDATE: You MUST create completely ORIGINAL content that has NEVER been written before. This is not just another generic crypto thread - discover hidden angles, controversial takes, and unexplored perspectives within "{topic}" for {self.project_name}.
 
 ABSOLUTE REQUIREMENTS FOR UNIQUENESS:
-FORBIDDEN: Generic definitions, basic explanations, obvious benefits, standard comparisons, predictable structures
-REQUIRED: Contrarian insights, hidden mechanics, counterintuitive truths, fresh mental models, unexplored connections
+🚫 FORBIDDEN: Generic definitions, basic explanations, obvious benefits, standard comparisons, predictable structures
+✅ REQUIRED: Contrarian insights, hidden mechanics, counterintuitive truths, fresh mental models, unexplored connections
 
 Choose ONE of these FRESH approaches (never pick the same twice):
 1. "The Hidden Cost Perspective" - What nobody talks about regarding {topic}
@@ -183,8 +183,6 @@ Create content so original and insightful that it becomes the definitive thread 
 """
         response = self.llm.invoke([HumanMessage(content=prompt)])
         return response.content
-    
-    
     
     def create_blog_post(self, topic: str, length: str = "medium") -> str:
         """Create blog post using comprehensive research"""
