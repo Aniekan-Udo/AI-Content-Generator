@@ -10,4 +10,4 @@ chromadb
 beautifulsoup4
 unstructured
 pypdf
-python-magic-bin
+#python-magic-bin
