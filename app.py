@@ -1,75 +1,20 @@
 import streamlit as st
-import os
 import time
 from typing import List
-from langchain_community.document_loaders import WebBaseLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_core.messages import HumanMessage
-from langchain_groq import ChatGroq
-from langchain.docstore.document import Document
+
+# Import your existing bot class
+try:
+    from bot import SimpleContentCreator
+except ImportError:
+    st.error("Could not import SimpleContentCreator from bot.py. Make sure bot.py is in the same directory.")
+    st.stop()
 
 # Configure your API key here
 GROQ_API_KEY = "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"
 
-class SimpleContentCreator:
-    def __init__(self, groq_api_key: str):
-        self.llm = ChatGroq(model="llama-3.3-70b-versatile", api_key=groq_api_key)
-        self.embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
-        self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200
-        )
-        self.project_name = None
-        self.vector_store = None
-        
-    def setup_project(self, project_name: str, urls: List[str], uploaded_files=None, additional_text: str = None):
-        """Setup project by loading documents from URLs, files, and text"""
-        self.project_name = project_name
-        all_documents = []
-        
-        # Process URLs
-        for url in urls:
-            if url.strip():
-                try:
-                    loader = WebBaseLoader([url])
-                    docs = loader.load()
-                    chunks = self.text_splitter.split_documents(docs)
-                    all_documents.extend(chunks)
-                except Exception as e:
-                    st.error(f"Error loading {url}: {str(e)}")
-        
-        # Process uploaded files
-        if uploaded_files:
-            for uploaded_file in uploaded_files:
-                try:
-                    content = self._extract_file_content(uploaded_file)
-                    if content:
-                        doc = Document(page_content=content, metadata={"source": uploaded_file.name})
-                        chunks = self.text_splitter.split_documents([doc])
-                        all_documents.extend(chunks)
-                except Exception as e:
-                    st.error(f"Error processing {uploaded_file.name}: {str(e)}")
-        
-        # Process additional text
-        if additional_text and additional_text.strip():
-            doc = Document(page_content=additional_text)
-            chunks = self.text_splitter.split_documents([doc])
-            all_documents.extend(chunks)
-        
-        # Create vector store
-        if all_documents:
-            self.vector_store = Chroma.from_documents(
-                documents=all_documents,
-                embedding=self.embeddings,
-                collection_name=f"{project_name.lower()}_{int(time.time())}"
-            )
-            return len(all_documents)
-        return 0
-    
-    def _extract_file_content(self, uploaded_file):
-        """Extract content from uploaded file"""
+def extract_file_content(uploaded_file):
+    """Extract content from uploaded file"""
+    try:
         file_content = uploaded_file.read()
         file_name = uploaded_file.name.lower()
         
@@ -82,7 +27,10 @@ class SimpleContentCreator:
                 pdf_reader = PyPDF2.PdfReader(BytesIO(file_content))
                 return "\n".join([page.extract_text() for page in pdf_reader.pages])
             except ImportError:
-                st.error("Install PyPDF2 to process PDF files")
+                st.error("Install PyPDF2 to process PDF files: pip install PyPDF2")
+                return None
+            except Exception as e:
+                st.error(f"Error reading PDF: {str(e)}")
                 return None
         elif file_name.endswith(('.docx', '.doc')):
             try:
@@ -91,64 +39,77 @@ class SimpleContentCreator:
                 doc = DocxDocument(BytesIO(file_content))
                 return "\n".join([paragraph.text for paragraph in doc.paragraphs])
             except ImportError:
-                st.error("Install python-docx to process Word files")
+                st.error("Install python-docx to process Word files: pip install python-docx")
+                return None
+            except Exception as e:
+                st.error(f"Error reading Word document: {str(e)}")
                 return None
         else:
             try:
                 return file_content.decode('utf-8')
-            except:
-                st.error(f"Cannot process file: {uploaded_file.name}")
+            except UnicodeDecodeError:
+                st.error(f"Cannot decode file {uploaded_file.name}. Please ensure it's a text-based file.")
                 return None
-    
-    def create_twitter_thread(self, topic: str, thread_length: int = 6) -> str:
-        """Create Twitter thread"""
-        if not self.vector_store:
-            return "Error: No project setup."
-        
-        docs = self.vector_store.similarity_search(topic, k=25)
-        research_content = "\n".join([doc.page_content for doc in docs])
-        
-        prompt = f"""
-CRITICAL CREATIVITY MANDATE: Create completely ORIGINAL Twitter thread about "{topic}" for {self.project_name}.
+    except Exception as e:
+        st.error(f"Error processing {uploaded_file.name}: {str(e)}")
+        return None
 
-FORBIDDEN: Generic definitions, obvious benefits, predictable structures
-REQUIRED: Contrarian insights, hidden mechanics, counterintuitive truths
-
-Create exactly {thread_length} tweets using this research:
-{research_content}
-
-Format as: 1/{thread_length}: [content] etc.
-"""
+def process_project_data(creator, project_name, urls_list, uploaded_files, additional_text):
+    """Process all project data and setup the creator"""
+    try:
+        # Prepare combined whitepaper text from files and additional text
+        combined_text_content = ""
         
-        response = self.llm.invoke([HumanMessage(content=prompt)])
-        return response.content
-    
-    def create_blog_post(self, topic: str, length: str = "medium") -> str:
-        """Create blog post"""
-        if not self.vector_store:
-            return "Error: No project setup."
+        # Add additional text if provided
+        if additional_text and additional_text.strip():
+            combined_text_content += additional_text + "\n\n"
         
-        docs = self.vector_store.similarity_search(topic, k=35)
-        research_content = "\n".join([doc.page_content for doc in docs])
+        # Process uploaded files and add to combined text
+        if uploaded_files:
+            for uploaded_file in uploaded_files:
+                content = extract_file_content(uploaded_file)
+                if content:
+                    combined_text_content += f"\n--- Content from {uploaded_file.name} ---\n\n{content}\n\n"
         
-        length_guide = {
-            "short": "800-1200 words",
-            "medium": "1500-2500 words", 
-            "long": "2500-4000 words"
-        }
+        # Call the original setup_project method
+        creator.setup_project(
+            project_name=project_name,
+            urls=urls_list,
+            whitepaper_path=None  # We're not using file paths, just text content
+        )
         
-        prompt = f"""
-Create a GROUNDBREAKING blog post about "{topic}" for {self.project_name}.
-Target: {length_guide.get(length, "1500-2500 words")}
-
-FORBIDDEN: Standard introductions, obvious explanations, predictable structures
-REQUIRED: Original thesis, contrarian perspectives, paradigm shifts
-
-Research: {research_content}
-"""
+        # If we have combined text content, we need to add it to the vector store
+        if combined_text_content.strip():
+            # Create a document from combined text and add to existing vector store
+            from langchain.docstore.document import Document
+            
+            if not creator.vector_store:
+                # If no vector store exists yet (no URLs processed), create one with text content
+                text_doc = Document(page_content=combined_text_content)
+                chunks = creator.text_splitter.split_documents([text_doc])
+                
+                if chunks:
+                    from langchain_community.vectorstores import Chroma
+                    creator.vector_store = Chroma.from_documents(
+                        documents=chunks,
+                        embedding=creator.embeddings,
+                        collection_name=f"{project_name.lower()}_{int(time.time())}"
+                    )
+            else:
+                # Add to existing vector store
+                text_doc = Document(page_content=combined_text_content)
+                chunks = creator.text_splitter.split_documents([text_doc])
+                if chunks:
+                    creator.vector_store.add_documents(chunks)
         
-        response = self.llm.invoke([HumanMessage(content=prompt)])
-        return response.content
+        # Return the number of documents in the vector store
+        if creator.vector_store:
+            return len(creator.vector_store.get()['ids'])
+        return 0
+        
+    except Exception as e:
+        st.error(f"Error setting up project: {str(e)}")
+        return 0
 
 def main():
     st.set_page_config(
@@ -160,21 +121,38 @@ def main():
     st.title("🚀 AI Content Creator")
     st.markdown("Upload your data and create amazing content!")
     
-    # Initialize the creator with pre-configured API key
+    # Initialize session state
     if 'creator' not in st.session_state:
-        st.session_state.creator = SimpleContentCreator(GROQ_API_KEY)
+        try:
+            st.session_state.creator = SimpleContentCreator(GROQ_API_KEY)
+        except Exception as e:
+            st.error(f"Error initializing content creator: {str(e)}")
+            st.error("Please check your API key and ensure all dependencies are installed.")
+            st.stop()
+            
     if 'data_uploaded' not in st.session_state:
         st.session_state.data_uploaded = False
+    if 'project_name' not in st.session_state:
+        st.session_state.project_name = ""
     
     # Sidebar for data upload
     with st.sidebar:
         st.header("📁 Upload Your Data")
         
-        project_name = st.text_input("Project Name", placeholder="Enter your project name")
+        project_name = st.text_input(
+            "Project Name", 
+            value=st.session_state.project_name,
+            placeholder="Enter your project name"
+        )
         
         # URLs
         st.subheader("🔗 Website URLs")
-        urls_text = st.text_area("Add URLs (one per line)", height=100, placeholder="https://example.com/docs\nhttps://example.com/whitepaper")
+        urls_text = st.text_area(
+            "Add URLs (one per line)", 
+            height=100, 
+            placeholder="https://example.com/docs\nhttps://example.com/whitepaper",
+            help="Enter documentation URLs, one per line"
+        )
         
         # File Upload
         st.subheader("📄 Upload Files")
@@ -188,73 +166,128 @@ def main():
         if uploaded_files:
             st.success(f"✅ {len(uploaded_files)} files ready to upload")
             for file in uploaded_files:
-                st.write(f"• {file.name}")
+                file_size = len(file.getvalue()) if hasattr(file, 'getvalue') else 'Unknown size'
+                st.write(f"• {file.name} ({file_size} bytes)")
         
         # Additional Text
         st.subheader("📝 Paste Content")
-        additional_text = st.text_area("Paste any additional content", height=100, placeholder="Paste whitepaper, documentation, or any other text here...")
+        additional_text = st.text_area(
+            "Paste any additional content", 
+            height=100, 
+            placeholder="Paste whitepaper, documentation, or any other text here...",
+            help="Any additional text content to include"
+        )
         
         # Upload Button
         if st.button("🚀 Process Data", type="primary"):
-            if not project_name:
+            if not project_name.strip():
                 st.error("Please enter a project name!")
             else:
-                urls = [url.strip() for url in urls_text.split('\n') if url.strip()]
+                urls_list = [url.strip() for url in urls_text.split('\n') if url.strip()]
                 
-                if not urls and not uploaded_files and not additional_text.strip():
+                if not urls_list and not uploaded_files and not additional_text.strip():
                     st.error("Please add at least one data source!")
                 else:
                     with st.spinner("Processing your data... This may take a few minutes."):
-                        doc_count = st.session_state.creator.setup_project(
-                            project_name, urls, uploaded_files, additional_text
-                        )
-                        
-                        if doc_count > 0:
-                            st.session_state.data_uploaded = True
-                            st.success(f"✅ Data processed! {doc_count} chunks loaded")
-                        else:
-                            st.error("❌ No data could be processed")
+                        try:
+                            doc_count = process_project_data(
+                                st.session_state.creator, 
+                                project_name, 
+                                urls_list, 
+                                uploaded_files, 
+                                additional_text
+                            )
+                            
+                            if doc_count > 0:
+                                st.session_state.data_uploaded = True
+                                st.session_state.project_name = project_name
+                                st.success(f"✅ Data processed successfully!")
+                                st.info(f"📊 Vector store contains {doc_count} document chunks")
+                            else:
+                                st.error("❌ No data could be processed. Please check your sources and try again.")
+                        except Exception as e:
+                            st.error(f"❌ Processing failed: {str(e)}")
     
     # Main content area
     if not st.session_state.data_uploaded:
         st.info("👈 Please upload your data first using the sidebar")
         
-        st.markdown("""
-        ### How it works:
-        1. **Add your project name** - Give your project a name
-        2. **Upload your data** - Add URLs, files, or paste content
-        3. **Process the data** - Click the process button
-        4. **Create content** - Write what you want and choose the format
+        # Instructions
+        col1, col2 = st.columns(2)
         
-        ### Supported formats:
-        - 📄 **PDF files** - Whitepapers, research papers
-        - 📝 **Word documents** - Documentation, reports  
-        - 🔗 **Website URLs** - Documentation sites, blogs
-        - ✏️ **Text content** - Any text you want to include
-        """)
+        with col1:
+            st.markdown("""
+            ### 🚀 How it works:
+            1. **Add your project name** - Give your project a name
+            2. **Upload your data** - Add URLs, files, or paste content
+            3. **Process the data** - Click the process button
+            4. **Create content** - Write what you want and choose the format
+            """)
+            
+        with col2:
+            st.markdown("""
+            ### 📁 Supported formats:
+            - 📄 **PDF files** - Whitepapers, research papers
+            - 📝 **Word documents** - Documentation, reports  
+            - 🔗 **Website URLs** - Documentation sites, blogs
+            - ✏️ **Text content** - Any text you want to include
+            """)
+        
+        # Example section
+        with st.expander("📋 Example Usage"):
+            st.markdown("""
+            **URLs Example:**
+            ```
+            https://docs.solana.com/introduction
+            https://docs.solana.com/consensus
+            https://ethereum.org/en/developers/docs/
+            ```
+            
+            **Content Ideas:**
+            - "Explain how the consensus mechanism works"
+            - "Write about the tokenomics and incentive structure"
+            - "Compare our approach to traditional solutions"
+            - "Deep dive into the technical architecture"
+            """)
         
     else:
         # Content creation interface
-        st.header("✨ Create Your Content")
+        st.header(f"✨ Create Content for {st.session_state.project_name}")
         
         # User prompt input
         user_prompt = st.text_area(
             "What do you want to write about?", 
             height=100,
-            placeholder="e.g., 'Explain how the consensus mechanism works' or 'Write about the tokenomics and incentive structure'"
+            placeholder="e.g., 'Explain how the consensus mechanism works' or 'Write about the tokenomics and incentive structure'",
+            help="Describe what you want to create content about in plain language"
         )
         
-        # Content type selection
+        # Content type and options
         col1, col2, col3 = st.columns([2, 2, 1])
         
         with col1:
-            content_type = st.selectbox("Content Type", ["Twitter Thread", "Blog Post"])
+            content_type = st.selectbox(
+                "Content Type", 
+                ["Twitter Thread", "Blog Post"],
+                help="Choose the format for your content"
+            )
         
         with col2:
             if content_type == "Twitter Thread":
-                thread_length = st.number_input("Number of tweets", min_value=3, max_value=15, value=6)
+                thread_length = st.number_input(
+                    "Number of tweets", 
+                    min_value=3, 
+                    max_value=20, 
+                    value=6,
+                    help="How many tweets in the thread"
+                )
             else:
-                blog_length = st.selectbox("Blog length", ["short", "medium", "long"])
+                blog_length = st.selectbox(
+                    "Blog length", 
+                    ["short", "medium", "long"],
+                    index=1,
+                    help="Short: 800-1200 words, Medium: 1500-2500 words, Long: 2500-4000 words"
+                )
         
         with col3:
             st.write("")  # Spacer
@@ -265,32 +298,68 @@ def main():
             if not user_prompt.strip():
                 st.error("Please enter what you want to write about!")
             else:
-                with st.spinner("Creating your content... This may take 1-2 minutes."):
+                with st.spinner("🤖 Creating your content... This may take 1-2 minutes."):
                     try:
                         if content_type == "Twitter Thread":
-                            content = st.session_state.creator.create_twitter_thread(user_prompt, thread_length)
+                            content = st.session_state.creator.create_twitter_thread(
+                                user_prompt, 
+                                thread_length
+                            )
                         else:
-                            content = st.session_state.creator.create_blog_post(user_prompt, blog_length)
+                            content = st.session_state.creator.create_blog_post(
+                                user_prompt, 
+                                blog_length
+                            )
                         
-                        st.success("✅ Content generated!")
-                        
-                        # Display the content
-                        st.subheader("Your Generated Content")
-                        st.text_area("", content, height=500, key="generated_content")
-                        
-                        # Download button
-                        file_extension = "txt" if content_type == "Twitter Thread" else "md"
-                        filename = f"{user_prompt[:30].replace(' ', '_')}_{content_type.lower().replace(' ', '_')}.{file_extension}"
-                        
-                        st.download_button(
-                            label=f"📥 Download {content_type}",
-                            data=content,
-                            file_name=filename,
-                            mime="text/plain"
-                        )
-                        
+                        if content and not content.startswith("Error:"):
+                            st.success("✅ Content generated successfully!")
+                            
+                            # Display the content
+                            st.subheader("Your Generated Content")
+                            st.text_area(
+                                "", 
+                                content, 
+                                height=500, 
+                                key="generated_content",
+                                help="Copy this content or use the download button below"
+                            )
+                            
+                            # Download button
+                            file_extension = "txt" if content_type == "Twitter Thread" else "md"
+                            filename = f"{user_prompt[:30].replace(' ', '_')}_{content_type.lower().replace(' ', '_')}.{file_extension}"
+                            
+                            st.download_button(
+                                label=f"📥 Download {content_type}",
+                                data=content,
+                                file_name=filename,
+                                mime="text/plain",
+                                help="Download your generated content as a file"
+                            )
+                            
+                            # Option to create more content
+                            if st.button("🔄 Create Another", key="create_another"):
+                                st.rerun()
+                                
+                        else:
+                            st.error("❌ Content generation failed. Please try again or check your data sources.")
+                            if content:
+                                st.error(content)
+                            
                     except Exception as e:
                         st.error(f"❌ Error generating content: {str(e)}")
+                        st.error("Please check your API key and internet connection.")
+
+        # Reset option
+        st.divider()
+        if st.button("🔄 Start New Project", type="secondary"):
+            # Clear session state
+            st.session_state.data_uploaded = False
+            st.session_state.project_name = ""
+            st.rerun()
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        st.error(f"Application error: {str(e)}")
+        st.error("Please refresh the page and try again.")
