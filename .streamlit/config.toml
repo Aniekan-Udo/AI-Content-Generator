@@ -3,4 +3,5 @@ fileWatcherType = "none"
 runOnSave = false
 
 [global]
-dataFrameSerialization = "legacy"
+[global]
+dataFrameSerialization = "arrow"
