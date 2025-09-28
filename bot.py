@@ -1,604 +1,352 @@
 import os
-import pprint
-from dotenv import load_dotenv
-load_dotenv()
-import operator
-from typing import Annotated
-from IPython.display import Image, display
-
-from typing import Any
-from typing_extensions import TypedDict
-
-from langgraph.graph import StateGraph, START, END
-from langgraph.checkpoint.memory import InMemorySaver
-from langgraph.store.memory import InMemoryStore
-from typing import Literal
-from langchain_core.messages import HumanMessage
-from langchain_community.document_loaders import UnstructuredURLLoader, TextLoader,PyPDFLoader,WebBaseLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter, CharacterTextSplitter
+import time
+from typing import List
+from langchain_community.document_loaders import WebBaseLoader, TextLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_core.tools import tool
-from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import END, START, StateGraph, MessagesState
-from langgraph.prebuilt import ToolNode
-from pydantic import BaseModel, Field
-
-from typing import TypedDict, Annotated
-from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_community.document_loaders import UnstructuredURLLoader
-from langchain_community.tools import TavilySearchResults
-from langchain.vectorstores import Chroma
-from langgraph.graph import StateGraph, END, START
-from langgraph.prebuilt import ToolNode
-from langchain_core.tools import tool
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_core.messages import HumanMessage
 from langchain_groq import ChatGroq
-import operator
-from langchain.docstore.document import Document
-from langgraph.prebuilt import create_react_agent
-from langchain_experimental.tools import PythonREPLTool
-from langgraph_supervisor import create_supervisor
-from IPython.display import Image, display
-
-from langchain.output_parsers import PydanticOutputParser
-from langchain.prompts import PromptTemplate
-from langchain.schema import Document
-
-llm = ChatGroq(model="llama-3.3-70b-versatile", GROQ_API_KEY="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")
-
-import tweepy
-
-client = tweepy.Client(bearer_token="AAAAAAAAAAAAAAAAAAAAACsy4QEAAAAAl%2F6hXVFuAw1ih2GBPjR%2BHJQkxZI%3DGeVeQJ2AZNU9HTbE1ajiwaVAvaUIrtCfRO9jE7hOEk1Ybb6Gj0")
-
-# Step 1: Get user ID for the handle
-user = client.get_user(username="Cysic_xyz")
-user_id = user.data.id
-
-# Step 2: Get tweets
-tweets = client.get_users_tweets(
-    id=user_id,
-    max_results=10,  # latest 10 tweets
-    tweet_fields=["created_at", "text"]
-)
-
-for tweet in tweets.data:
-    print(f"[{tweet.created_at}] {tweet.text}")
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
 
-# Embeddings
-embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+groq_api_key="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"
 
-# --- Local TXT Retriever (Enhanced for deeper content) ---
-doc_loader = TextLoader(r"C:\Users\HP\Desktop\Twitter Thread Creator\Cysic whitepaper.txt")
-docs = doc_loader.load()
-# Larger chunks for more comprehensive content
-text_splitter = CharacterTextSplitter(chunk_size=1200, chunk_overlap=200)
-docs_chunk = text_splitter.split_documents(docs)
-
-pdf_store = Chroma.from_documents(
-    documents=docs_chunk,
-    collection_name="text_docs",
-    embedding=embeddings,
-    persist_directory="./chroma_store_txt"
-)
-# Retrieve more chunks for comprehensive threads
-txt_retriever = pdf_store.as_retriever(search_kwargs={"k": 8})
-
-# --- URL Retriever (Enhanced for deeper content) ---
-base_urls = [
-    "https://docs.cysic.xyz/readme/cysic-agent-to-agent-protocol",
-    "https://docs.cysic.xyz/"
-]
-url_loader = WebBaseLoader(base_urls)
-url_docs = url_loader.load()
-url_chunks = text_splitter.split_documents(url_docs)
-
-url_store = Chroma.from_documents(
-    documents=url_chunks,
-    collection_name="url_docs",
-    embedding=embeddings,
-    persist_directory="./chroma_store_url"
-)
-url_retriever = url_store.as_retriever(search_kwargs={"k": 8})
-
-# --- Tweet Retriever (Enhanced filtering for meaningful content) ---
-def filter_meaningful_tweets(tweets):
-    """Filter and process tweets to store only meaningful, generic content"""
-    if not tweets:  # Handle empty list
-        return []
+class SimpleContentCreator:
+    def __init__(self, groq_api_key: str):
+        self.llm = ChatGroq(model="llama-3.3-70b-versatile", api_key=groq_api_key)
+        self.embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+        self.text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=200
+        )
+        self.project_name = None
+        self.vector_store = None
         
-    meaningful_tweets = []
-    
-    for tweet in tweets:
-        # Ensure tweet is a string
-        if not isinstance(tweet, str):
-            continue
-            
-        # Skip if too short (less than 10 characters to be more lenient)
-        if len(tweet.strip()) < 10:
-            continue
-            
-        # Skip if contains too many mentions or hashtags (spam-like)
-        mention_count = tweet.count('@')
-        hashtag_count = tweet.count('#')
-        if mention_count > 5 or hashtag_count > 8:  # More lenient
-            continue
-            
-        # Skip promotional/spam content
-        spam_keywords = ['buy now', 'limited time', 'click here', 'dm me', 'follow for follow', 'get rich quick']
-        if any(keyword in tweet.lower() for keyword in spam_keywords):
-            continue
-            
-        # Keep educational, informational, or engaging content
-        meaningful_keywords = ['learn', 'understand', 'explore', 'discover', 'innovation', 
-                             'technology', 'development', 'community', 'future', 'breakthrough',
-                             'cysic', 'blockchain', 'crypto', 'defi', 'web3', 'protocol']
+    def setup_project(self, project_name: str, urls: List[str], whitepaper_path: str = None):
+        """Setup project by loading documents from specified URLs and whitepaper"""
+        print(f"Setting up project: {project_name}")
+        print(f"Processing {len(urls)} URLs...")
         
-        # More lenient criteria: keep if has meaningful keywords OR is reasonably long OR mentions project
-        if (any(keyword in tweet.lower() for keyword in meaningful_keywords) or 
-            len(tweet) > 80 or 
-            'cysic' in tweet.lower()):
-            meaningful_tweets.append(tweet.strip())
-    
-    return meaningful_tweets
-
-# Process Tweepy response object properly
-def extract_tweet_texts(tweets_response):
-    """Extract tweet texts from Tweepy response object"""
-    if not tweets_response or not hasattr(tweets_response, 'data') or not tweets_response.data:
-        return []
-    
-    tweet_texts = []
-    for tweet in tweets_response.data:
-        if hasattr(tweet, 'text'):
-            tweet_texts.append(tweet.text)
-    
-    return tweet_texts
-
-# Check if 'tweets' variable exists and handle appropriately
-try:
-    if 'tweets' in locals() or 'tweets' in globals():
-        # Extract text from Tweepy response
-        raw_tweet_texts = extract_tweet_texts(tweets)
-        filtered_tweets = filter_meaningful_tweets(raw_tweet_texts)
-        print(f"Original tweets: {len(raw_tweet_texts)}")
-        print(f"Filtered tweets: {len(filtered_tweets)}")
+        self.project_name = project_name
+        all_documents = []
         
-        # Print sample of filtered tweets for debugging
-        if filtered_tweets:
-            print("\nSample filtered tweets:")
-            for i, tweet in enumerate(filtered_tweets[:3], 1):
-                print(f"{i}. {tweet[:100]}...")
-                
-    elif 'tweet' in locals() or 'tweet' in globals():
-        # Handle if you named it 'tweet' instead of 'tweets'
-        if hasattr(tweet, 'data'):
-            raw_tweet_texts = extract_tweet_texts(tweet)
-            filtered_tweets = filter_meaningful_tweets(raw_tweet_texts)
+        # Process each URL directly (no automatic subpage discovery)
+        for url in urls:
+            print(f"Processing: {url}")
+            try:
+                loader = WebBaseLoader([url])
+                docs = loader.load()
+                chunks = self.text_splitter.split_documents(docs)
+                all_documents.extend(chunks)
+                print(f"  Loaded {len(chunks)} chunks from {url}")
+            except Exception as e:
+                print(f"  Error loading {url}: {str(e)}")
+            
+        # Process whitepaper if provided
+        if whitepaper_path and os.path.exists(whitepaper_path):
+            print(f"Processing whitepaper: {whitepaper_path}")
+            try:
+                loader = TextLoader(whitepaper_path)
+                docs = loader.load()
+                chunks = self.text_splitter.split_documents(docs)
+                all_documents.extend(chunks)
+                print(f"  Loaded {len(chunks)} chunks from whitepaper")
+            except Exception as e:
+                print(f"  Error loading whitepaper: {str(e)}")
+            
+        # Create vector store with all content
+        if all_documents:
+            print(f"Creating knowledge base with {len(all_documents)} document chunks")
+            self.vector_store = Chroma.from_documents(
+                documents=all_documents,
+                embedding=self.embeddings,
+                collection_name=f"{project_name.lower()}_{int(time.time())}"
+            )
+            print(f"Setup complete for {project_name}")
         else:
-            filtered_tweets = filter_meaningful_tweets(tweet)
-        print(f"Filtered tweets: {len(filtered_tweets)}")
+            print("Warning: No documents were loaded")
+
+    
+    def create_twitter_thread(self, topic: str, thread_length: int = 6) -> str:
+        """Create Twitter thread using comprehensive research"""
+        if not self.vector_store:
+            return "Error: No project setup. Run setup_project() first."
+            
+        print(f"Creating Twitter thread about: {topic}")
         
-    else:
-        # If no tweets available, create some sample meaningful tweets for testing
-        print("No 'tweets' variable found. Using sample tweets for testing.")
-        sample_tweets = [
-            "Exploring the future of decentralized protocols with Cysic's innovative approach to blockchain technology.",
-            "The community is growing! Excited to see more developers joining the Cysic ecosystem.",
-            "Understanding zero-knowledge proofs and their role in modern cryptocurrency systems.",
-            "Innovation in blockchain requires both technical excellence and community collaboration.",
-            "Building the future of Web3 infrastructure one protocol at a time."
-        ]
-        filtered_tweets = sample_tweets
+        # Get comprehensive research from ALL documents
+        docs = self.vector_store.similarity_search(topic, k=25)
+        research_content = "\n".join([doc.page_content for doc in docs])
         
-except Exception as e:
-    print(f"Error processing tweets: {e}")
-    # Fallback to sample tweets
-    filtered_tweets = [
-        "Cysic is revolutionizing blockchain technology through innovative protocols.",
-        "Join our growing community of developers building the future of DeFi.",
-        "Learn about the latest developments in zero-knowledge proof systems."
+        #ORIGINAL PROMPT
+#         prompt = f"""
+# Create a high-quality crypto Twitter thread about "{topic}" for {self.project_name} following Kaito guidelines.
+
+# IMPORTANT: Don't just focus on "{topic}" literally. Use ALL the research below to find related concepts, underlying mechanisms, technical details, and broader context that would make the thread more comprehensive and educational.
+# Don't repeat or recycle tweets, be creative in crafting your tweets to avoid repetition
+
+# For example: If asked about "{self.project_name}", also include consensus mechanisms, protocol architecture, validator systems, tokenomics, security features, or any other relevant technical aspects found in the research.
+
+# Use ALL this comprehensive research from the project's documentation:
+# {research_content}
+
+# KAITO GUIDELINES COMPLIANCE:
+# - Focus on crypto-related content backed by deep knowledge from the research
+# - Create high-quality, long-form content about this specific crypto protocol ({self.project_name})
+# - Provide original insightful analysis based on the comprehensive research provided
+# - Ensure content is relevant and timely for crypto community
+# - Make it educational and valuable, not random commentary
+
+# THREAD REQUIREMENTS:
+# - Create exactly {thread_length} tweets that form a high-quality, long-form educational thread
+# - Each tweet should be SUBSTANTIAL (close to 280 characters) with detailed technical content
+# - Use insights from ALL sources and subtopics in the research
+# - Always simplify tweets, so audience can understand what you're talking about
+# - Include specific technical details, examples, and deep analysis in each tweet
+# - Explore related concepts found in the research even if not explicitly mentioned in "{topic}"
+# - Build knowledge progressively through the thread with comprehensive explanations
+# - Make each tweet a mini-lesson with actionable insights
+# - Focus on protocol-specific insights that demonstrate deep technical understanding
+# - Avoid brief summaries - provide detailed explanations and analysis
+
+# CONTENT STRATEGY:
+# - Start with a compelling hook about {topic} in {self.project_name}
+# - Explore underlying technical mechanisms found in the research
+# - Include related concepts like consensus, architecture, security, tokenomics as relevant
+# - Present technical analysis backed by the research
+# - Include specific examples and use cases from documentation
+# - Explain complex concepts clearly
+# - End with key insights or broader implications
+
+# Format as:
+# 1/{thread_length}: [tweet content]
+# 2/{thread_length}: [tweet content]
+# ...and so on
+
+# Create an insightful, knowledge-backed thread that goes beyond just "{topic}" to explore the comprehensive technical ecosystem found in the research.
+# """
+        #NEW PROMPT
+        prompt = f"""
+CRITICAL CREATIVITY MANDATE: You MUST create completely ORIGINAL content that has NEVER been written before. This is not just another generic crypto thread - discover hidden angles, controversial takes, and unexplored perspectives within "{topic}" for {self.project_name}.
+
+ABSOLUTE REQUIREMENTS FOR UNIQUENESS:
+🚫 FORBIDDEN: Generic definitions, basic explanations, obvious benefits, standard comparisons, predictable structures
+✅ REQUIRED: Contrarian insights, hidden mechanics, counterintuitive truths, fresh mental models, unexplored connections
+
+Choose ONE of these FRESH approaches (never pick the same twice):
+1. "The Hidden Cost Perspective" - What nobody talks about regarding {topic}
+2. "The Contrarian Take" - Challenge conventional wisdom about {topic}
+3. "The Technical Deep Dive" - Microscopic analysis of overlooked mechanics
+4. "The Historical Evolution" - How {topic} emerged and morphed in {self.project_name}
+5. "The Future Speculation" - Radical predictions about {topic}'s evolution
+6. "The Ecosystem Impact" - Ripple effects and unexpected consequences
+7. "The Developer's Secret" - Insider technical knowledge about {topic}
+8. "The Economic Game Theory" - Strategic implications and incentive analysis
+9. "The User Experience Lens" - How {topic} actually affects real users
+10. "The Philosophical Angle" - Deeper implications for crypto's future
+
+CREATIVE EXECUTION RULES:
+- Start with a SHOCKING statement or counterintuitive claim about {topic}
+- Use unexpected analogies (compare crypto concepts to biology, physics, psychology, etc.)
+- Reveal "secrets" or little-known technical details
+- Challenge popular assumptions with evidence from the research
+- Present familiar concepts through completely new frameworks
+- Ask provocative questions that make people think differently
+- End with mind-bending implications or predictions
+
+BANNED PHRASES/APPROACHES:
+- "Let's break down..."
+- "Here's why [topic] matters..."
+- "The benefits of..."
+- Any explanation that starts with basic definitions
+- Generic feature lists
+- Obvious use cases everyone knows
+
+Use this comprehensive research to find UNIQUE angles and hidden insights:
+{research_content}
+
+THREAD REQUIREMENTS:
+- Create exactly {thread_length} tweets that shock, educate, and provoke thought
+- Each tweet must reveal something most people don't know about {topic}
+- Build a narrative that's impossible to ignore
+- Include specific technical details presented in revolutionary ways
+- Make readers say "I never thought about it that way"
+
+Format as:
+1/{thread_length}: [mind-blowing opener with counterintuitive claim]
+2/{thread_length}: [supporting evidence that surprises]
+...continue with escalating insights...
+{thread_length}/{thread_length}: [paradigm-shifting conclusion]
+
+Create content so original and insightful that it becomes the definitive thread about this aspect of {topic} in {self.project_name}.
+"""
+        response = self.llm.invoke([HumanMessage(content=prompt)])
+        return response.content
+    
+    def create_blog_post(self, topic: str, length: str = "medium") -> str:
+        """Create blog post using comprehensive research"""
+        if not self.vector_store:
+            return "Error: No project setup. Run setup_project() first."
+            
+        print(f"Creating blog post about: {topic}")
+        
+        # Get even more comprehensive research for blog posts
+        docs = self.vector_store.similarity_search(topic, k=35)
+        research_content = "\n".join([doc.page_content for doc in docs])
+        
+        length_guide = {
+            "short": "800-1200 words, 4-5 main sections",
+            "medium": "1500-2500 words, 6-8 main sections", 
+            "long": "2500-4000 words, 8-10 main sections"
+        }
+        
+        target_length = length_guide.get(length, "1500-2500 words, 6-8 main sections")
+        #ORIGINAL PROMPT
+#         prompt = f"""
+# Write a comprehensive blog post about "{topic}" for {self.project_name}.
+
+# IMPORTANT: Don't just focus on "{topic}" literally. Use ALL the research below to find related concepts, underlying mechanisms, technical details, and broader context that would make the blog post more comprehensive and educational.
+# Don't repeat or recycle contents, be creative in crafting your contents to avoid repetition
+# For example: If asked about "{self.project_name}", also explore consensus mechanisms, protocol architecture, validator systems, tokenomics, security features, governance, scalability solutions, or any other relevant technical aspects found in the research.
+
+# Use ALL this comprehensive research from the project's documentation:
+# {research_content}
+
+# BLOG POST REQUIREMENTS:
+# - Target: {target_length}
+# - Use insights from ALL sources and subtopics in the research
+# - Explore related concepts found in the research even if not explicitly mentioned in "{topic}"
+# - Include specific examples and use cases from the research
+# - Create proper blog structure with headings
+# - Add image placeholders where helpful: [IMAGE: specific description]
+# - Educational and authoritative tone
+# - Technical depth appropriate for crypto/blockchain audience
+
+# CONTENT STRATEGY:
+# - Start with compelling introduction about {topic} and {self.project_name}
+# - Explore underlying technical mechanisms and related concepts found in the research
+# - Include sections on architecture, consensus, security, tokenomics, governance as relevant
+# - Combine different aspects, perspectives, and technical details from ALL research
+# - Present comprehensive analysis that goes beyond surface-level {topic} discussion
+# - Include practical applications and real-world implications
+# - Technical explanations with specific examples from the documentation
+
+# STRUCTURE APPROACH:
+# 1. Compelling introduction that hooks readers about {topic} and broader context
+# 2. Multiple detailed sections covering different subtopics discovered in research
+# 3. Technical explanations with specific examples from ALL available research
+# 4. Practical applications and use cases across related areas
+# 5. Comprehensive analysis of implications and future considerations
+# 6. Conclusion with key takeaways from the holistic exploration
+
+# Analyze all the research content, identify key subtopics and themes beyond just "{topic}", and create a comprehensive blog post that thoroughly explores the broader technical ecosystem using ALL available documentation.
+# """
+        #NEW PROMPT
+        prompt = f"""
+REVOLUTIONARY CONTENT MANDATE: Create a GROUNDBREAKING blog post about "{topic}" in {self.project_name} that completely reframes how people think about this subject. This must be the most insightful piece ever written on this specific angle.
+
+ORIGINALITY IMPERATIVES:
+🚫 ABSOLUTELY FORBIDDEN: Standard introductions, obvious explanations, generic benefits/challenges, predictable structures, common examples, typical conclusions
+✅ MANDATORY: Original thesis, contrarian perspectives, hidden connections, fresh frameworks, exclusive insights, paradigm shifts
+
+SELECT ONE REVOLUTIONARY FRAMEWORK (rotate between different posts):
+
+A) "The Iceberg Analysis" - Reveal the 90% hidden mechanics beneath surface understanding of {topic}
+B) "The Paradox Exploration" - Uncover contradictions and paradoxes within {topic} that reveal deeper truths
+C) "The Evolution Hypothesis" - Propose how {topic} is secretly evolving beyond current understanding
+D) "The System Dynamics" - Map the invisible forces and feedback loops driving {topic}
+E) "The Contrarian Thesis" - Build a compelling case against conventional wisdom about {topic}
+F) "The Convergence Theory" - Show how {topic} intersects with unexpected domains
+G) "The Future Archaeology" - Analyze {topic} as if looking back from 2030
+H) "The Mental Model Revolution" - Introduce completely new ways to think about {topic}
+I) "The Hidden Economics" - Expose the incentive structures and game theory within {topic}
+J) "The Technical Philosophy" - Explore the deeper implications of {topic}'s technical design
+
+CONTENT INNOVATION REQUIREMENTS:
+- Develop an original thesis that challenges existing thinking
+- Create new terminology or frameworks for understanding {topic}
+- Use research to support contrarian or counterintuitive claims
+- Present technical concepts through revolutionary analogies
+- Structure sections with provocative, non-obvious headings
+- Include exclusive insights not found anywhere else
+- Build to conclusions that shift paradigms
+
+Target: {target_length}
+
+Use this research to construct your revolutionary analysis:
+{research_content}
+
+STRUCTURE INNOVATION:
+- Hook: Start with a shocking revelation or counterintuitive claim about {topic}
+- Thesis: Present your original framework/theory about {topic}
+- Evidence: Use research to build your case with surprising insights
+- Implications: Explore consequences that others haven't considered
+- Paradigm Shift: Conclude with how this changes everything
+
+SECTION HEADING EXAMPLES (create similar original ones):
+- "The [Topic] Illusion: Why Everything You Think You Know Is Wrong"
+- "The Hidden Variables: [Topic]'s Secret Control Mechanisms"  
+- "Beyond [Topic]: The Invisible Forces Shaping the Future"
+- "The [Topic] Paradox: How Success Creates Its Own Problems"
+- "Deconstructing [Topic]: The Mental Models We Need to Abandon"
+
+BANNED GENERIC SECTIONS:
+- "What is [topic]?"
+- "Benefits of [topic]"
+- "How [topic] works"
+- "Use cases for [topic]"
+- "Future of [topic]"
+
+Create content so revolutionary that it becomes required reading for anyone serious about understanding {topic} in {self.project_name}. Make readers completely rethink their assumptions.
+"""
+
+        
+        response = self.llm.invoke([HumanMessage(content=prompt)])
+        return response.content
+
+# Simple usage functions
+def create_content_system(groq_api_key: str):
+    """Initialize the content creation system"""
+    return SimpleContentCreator(groq_api_key)
+
+# Example usage:
+"""
+# Initialize
+creator = create_content_system("your_groq_api_key_here")
+
+# Setup any project with manually selected important URLs
+creator.setup_project(
+    project_name="Solana",
+    urls=[
+        "https://docs.solana.com/introduction",
+        "https://docs.solana.com/consensus",
+        "https://docs.solana.com/validators",
+        "https://docs.solana.com/developing/programming-model",
+        "https://docs.solana.com/cluster/overview"
+    ],
+    whitepaper_path="solana_whitepaper.pdf"  # optional
+)
+
+# Create ONLY tweets
+thread = creator.create_twitter_thread("consensus mechanisms", thread_length=7)
+print(thread)
+
+# OR create ONLY blog post  
+blog = creator.create_blog_post("validator economics", length="long")
+print(blog)
+
+# Switch to different project
+creator.setup_project(
+    project_name="Ethereum", 
+    urls=[
+        "https://ethereum.org/en/developers/docs/intro-to-ethereum/",
+        "https://ethereum.org/en/developers/docs/consensus-mechanisms/",
+        "https://ethereum.org/en/developers/docs/evm/",
+        "https://ethereum.org/en/developers/docs/smart-contracts/"
     ]
+)
 
-# Only create tweet store if we have tweets
-if filtered_tweets:
-    tweet_docs = [Document(page_content=t, metadata={"source": "twitter", "type": "meaningful_content"}) 
-                  for t in filtered_tweets]
-
-    tweet_store = Chroma.from_documents(
-        embedding=embeddings,
-        collection_name="tweet_docs",
-        documents=tweet_docs,
-        persist_directory="./chroma_store_tweet"
-    )
-    tweet_retriever = tweet_store.as_retriever(search_kwargs={"k": 5})
-else:
-    print("Warning: No meaningful tweets found. Tweet retriever will return empty results.")
-    # Create a dummy retriever that returns empty results
-    class EmptyRetriever:
-        def get_relevant_documents(self, query):
-            return []
-    
-    tweet_retriever = EmptyRetriever()
-
-# -------------------------
-# ENHANCED TOOLS FOR EDUCATIONAL THREAD CREATION
-# -------------------------
-MAX_CONTENT_CHARS = 6000  # Increased for comprehensive threads
-
-@tool
-def comprehensive_research_tool(query: str) -> str:
-    """Comprehensive research tool that gathers extensive content from all sources for educational threads."""
-    
-    # Get comprehensive content from all sources
-    txt_results = txt_retriever.get_relevant_documents(query)
-    url_results = url_retriever.get_relevant_documents(query)
-    
-    try:
-        tweet_results = tweet_retriever.get_relevant_documents(query)
-    except:
-        tweet_results = []
-    
-    # Compile comprehensive research
-    research_data = {
-        "whitepaper_content": [],
-        "documentation_content": [],
-        "community_insights": [],
-        "total_sources": 0
-    }
-    
-    # Process whitepaper content
-    for doc in txt_results:
-        research_data["whitepaper_content"].append({
-            "content": doc.page_content,
-            "relevance": "high"
-        })
-        research_data["total_sources"] += 1
-    
-    # Process documentation content
-    for doc in url_results:
-        research_data["documentation_content"].append({
-            "content": doc.page_content,
-            "relevance": "high"
-        })
-        research_data["total_sources"] += 1
-    
-    # Process community insights
-    for doc in tweet_results:
-        research_data["community_insights"].append({
-            "content": doc.page_content,
-            "relevance": "medium"
-        })
-        research_data["total_sources"] += 1
-    
-    # Compile into comprehensive research summary
-    compiled_research = f"""
-    COMPREHENSIVE RESEARCH FOR: {query}
-    
-    TOTAL SOURCES ANALYZED: {research_data["total_sources"]}
-    
-    === WHITEPAPER INSIGHTS ===
-    {chr(10).join([f"• {item['content']}" for item in research_data["whitepaper_content"]])}
-    
-    === TECHNICAL DOCUMENTATION ===
-    {chr(10).join([f"• {item['content']}" for item in research_data["documentation_content"]])}
-    
-    === COMMUNITY CONTEXT ===
-    {chr(10).join([f"• {item['content']}" for item in research_data["community_insights"]])}
-    """
-    
-    return compiled_research[:MAX_CONTENT_CHARS]
-
-@tool
-def educational_thread_architect(research_content: str, thread_length: int = 5) -> str:
-    """Architect comprehensive educational Twitter threads with deep, valuable content."""
-    
-    architect_prompt = f"""
-    You are an expert Twitter thread architect specializing in EDUCATIONAL content that teaches and informs.
-
-    Based on this comprehensive research, create a detailed thread structure:
-    {research_content}
-
-    THREAD REQUIREMENTS:
-    - Length: {thread_length} tweets minimum
-    - Educational focus: Teach complex concepts simply
-    - Value-driven: Each tweet must provide substantial value
-    - Progressive structure: Build knowledge step by step
-    - Include specific technical details and examples
-    - Make complex topics accessible
-
-    THREAD ARCHITECTURE FRAMEWORK:
-
-    🧵 TWEET 1 - HOOK & CONTEXT:
-    - Start with a compelling statement about the topic's importance
-    - Provide context for why this matters to the crypto/tech community
-    - Preview the key insights they'll learn
-
-    🧵 TWEET 2-3 - FOUNDATIONAL CONCEPTS:
-    - Explain the core technical concepts in accessible terms
-    - Use analogies and examples from the research
-    - Build the foundation for deeper understanding
-
-    🧵 TWEETS 4-5+ - DEEP DIVE & TECHNICAL DETAILS:
-    - Present specific technical innovations and mechanisms
-    - Include concrete examples and use cases
-    - Show real-world applications and implications
-
-    🧵 FINAL TWEET - SYNTHESIS & IMPACT:
-    - Synthesize key learnings
-    - Explain broader implications for the industry
-    - End with thought-provoking insights or future outlook
-
-    CONTENT GUIDELINES:
-    ✅ Use specific data, facts, and technical details from the research
-    ✅ Explain complex concepts with clear, simple language
-    ✅ Include concrete examples and real-world applications  
-    ✅ Build a logical, progressive narrative
-    ✅ Each tweet should teach something new and valuable
-    ✅ Focus on "how" and "why" rather than just "what"
-    ✅ Include technical depth that demonstrates expertise
-
-    ❌ Avoid vague generalizations
-    ❌ Don't just ask questions - provide answers and insights
-    ❌ Avoid fluff or filler content
-    ❌ Don't repeat the same points across tweets
-
-    Return a detailed thread structure with specific content points for each tweet.
-    """
-    
-    response = llm.invoke(architect_prompt)
-    return response.content
-
-@tool
-def thread_content_creator(thread_structure: str, tone: str = "educational") -> str:
-    """Create the actual Twitter thread content based on the architectural structure."""
-    
-    creator_prompt = f"""
-    You are an expert Twitter content creator specializing in educational threads.
-
-    Transform this thread structure into actual, ready-to-post Twitter content:
-    {thread_structure}
-
-    CONTENT CREATION GUIDELINES:
-
-    📝 WRITING STYLE:
-    - {tone} tone that's authoritative yet accessible
-    - Use clear, concise language that explains complex concepts
-    - Include specific technical details and examples
-    - Make each tweet substantive and valuable
-    - Use engaging hooks and smooth transitions
-
-    🎯 TWEET FORMATTING:
-    - Each tweet should be 200-280 characters for optimal engagement
-    - Use thread numbering (1/, 2/, 3/, etc.)
-    - Include relevant emojis for visual appeal and organization
-    - Use line breaks for readability
-    - End each tweet (except the last) with a hook for the next tweet
-
-    📊 CONTENT REQUIREMENTS:
-    - Include specific data points, technical details, and examples
-    - Explain mechanisms, processes, and innovations clearly
-    - Use analogies to make complex concepts accessible
-    - Provide actionable insights and key takeaways
-    - Focus on teaching and educating the audience
-
-    🔗 THREAD FLOW:
-    - Ensure smooth transitions between tweets
-    - Build knowledge progressively
-    - Maintain engagement throughout the entire thread
-    - End with a strong conclusion that synthesizes key points
-
-    Return the complete, ready-to-post Twitter thread with proper formatting.
-    """
-    
-    response = llm.invoke(creator_prompt)
-    return response.content
-
-@tool
-def thread_quality_enhancer(thread_content: str) -> str:
-    """Enhance thread quality for maximum educational value and engagement."""
-    
-    enhancer_prompt = f"""
-    You are a Twitter thread optimization expert focused on educational content.
-
-    Review and enhance this thread for maximum educational value and engagement:
-    {thread_content}
-
-    ENHANCEMENT CRITERIA:
-
-    📚 EDUCATIONAL VALUE:
-    - Does each tweet teach something concrete and valuable?
-    - Are complex concepts explained clearly and simply?
-    - Is there sufficient technical depth to demonstrate expertise?
-    - Are there specific examples and use cases included?
-
-    🔥 ENGAGEMENT OPTIMIZATION:
-    - Strong, attention-grabbing opening hook
-    - Compelling progression that keeps readers engaged
-    - Clear value proposition in each tweet
-    - Thought-provoking insights and implications
-    - Strong conclusion that synthesizes learnings
-
-    ✨ CONTENT QUALITY:
-    - Remove any vague or generic statements
-    - Strengthen weak transitions between tweets
-    - Add specific technical details where missing
-    - Improve clarity and accessibility of explanations
-    - Ensure each tweet provides substantial value
-
-    📱 TWITTER OPTIMIZATION:
-    - Optimize tweet length for readability
-    - Improve formatting and visual appeal
-    - Ensure proper thread numbering and flow
-    - Add strategic emojis for organization and appeal
-
-    🎯 KAITO COMPLIANCE:
-    - High educational and informational value
-    - Original insights and perspectives
-    - Technical depth and expertise demonstration
-    - Community-relevant content
-    - Discussion-worthy angles
-
-    Return the enhanced, optimized thread ready for publication.
-    """
-    
-    response = llm.invoke(enhancer_prompt)
-    return response.content
-
-@tool
-def thread_formatter(enhanced_thread: str) -> str:
-    """Final formatting for publication-ready Twitter thread."""
-    
-    formatter_prompt = f"""
-    Apply final formatting to this Twitter thread for publication:
-    {enhanced_thread}
-
-    FINAL FORMATTING REQUIREMENTS:
-
-    📱 TWITTER SPECIFICATIONS:
-    - Ensure each tweet is under 280 characters
-    - Use proper thread numbering (1/X, 2/X, etc.)
-    - Add strategic line breaks for readability
-    - Include relevant emojis for visual organization
-    - Ensure smooth flow between tweets
-
-    🎨 VISUAL OPTIMIZATION:
-    - Use consistent formatting throughout
-    - Strategic use of emojis and symbols
-    - Proper spacing and line breaks
-    - Clear section divisions
-    - Easy-to-scan structure
-
-    ✅ FINAL CHECKLIST:
-    - Each tweet provides substantial value
-    - Technical concepts are clearly explained
-    - Specific examples and details are included
-    - Thread builds knowledge progressively
-    - Strong opening and closing
-    - Ready to copy-paste and publish
-
-    Return the final, publication-ready Twitter thread.
-    """
-    
-    response = llm.invoke(formatter_prompt)
-    return response.content
-
-# -------------------------
-# ENHANCED WORKFLOW FOR EDUCATIONAL THREADS
-# -------------------------
-
-from langgraph.graph import StateGraph, MessagesState
-from langchain_core.messages import HumanMessage, AIMessage
-
-def comprehensive_research_node(state):
-    """Enhanced research phase: gather extensive content from all sources"""
-    messages = state["messages"]
-    query = messages[-1].content
-    
-    # Extract thread length if specified
-    thread_length = 5  # default
-    if "thread" in query.lower():
-        # Try to extract number
-        import re
-        numbers = re.findall(r'\d+', query)
-        if numbers:
-            thread_length = min(int(numbers[0]), 15)  # Max 15 tweets
-    
-    # Comprehensive research
-    research_content = comprehensive_research_tool.invoke({"query": query})
-    
-    research_summary = f"""
-    COMPREHENSIVE RESEARCH COMPLETED
-    Query: {query}
-    Requested Thread Length: {thread_length}
-    
-    {research_content}
-    """
-    
-    return {"messages": messages + [AIMessage(content=research_summary)]}
-
-def thread_architecture_node(state):
-    """Architect the educational thread structure"""
-    messages = state["messages"]
-    research_data = messages[-1].content
-    
-    # Extract thread length from research summary
-    thread_length = 5
-    if "Thread Length:" in research_data:
-        import re
-        match = re.search(r'Thread Length: (\d+)', research_data)
-        if match:
-            thread_length = int(match.group(1))
-    
-    # Create thread architecture
-    thread_structure = educational_thread_architect.invoke({
-        "research_content": research_data,
-        "thread_length": thread_length
-    })
-    
-    return {"messages": messages + [AIMessage(content=thread_structure)]}
-
-def content_creation_node(state):
-    """Create the actual thread content"""
-    messages = state["messages"]
-    thread_structure = messages[-1].content
-    original_query = messages[0].content
-    
-    # Determine tone from original query
-    tone = "educational"
-    if "technical" in original_query.lower():
-        tone = "technical-educational"
-    elif "beginner" in original_query.lower():
-        tone = "beginner-friendly"
-    
-    # Create thread content
-    thread_content = thread_content_creator.invoke({
-        "thread_structure": thread_structure,
-        "tone": tone
-    })
-    
-    return {"messages": messages + [AIMessage(content=thread_content)]}
-
-def quality_enhancement_node(state):
-    """Enhance thread quality and educational value"""
-    messages = state["messages"]
-    thread_content = messages[-1].content
-    
-    # Enhance the thread
-    enhanced_thread = thread_quality_enhancer.invoke({"thread_content": thread_content})
-    
-    return {"messages": messages + [AIMessage(content=enhanced_thread)]}
-
-def final_formatting_node(state):
-    """Final formatting for publication"""
-    messages = state["messages"]
-    enhanced_thread = messages[-1].content
-    
-    # Final formatting
-    final_thread = thread_formatter.invoke({"enhanced_thread": enhanced_thread})
-    
-    return {"messages": messages + [AIMessage(content=final_thread)]}
-
-# Create the enhanced workflow
-workflow = StateGraph(MessagesState)
-
-# Add nodes for educational thread creation
-workflow.add_node("research", comprehensive_research_node)
-workflow.add_node("architect", thread_architecture_node)
-workflow.add_node("create", content_creation_node)
-workflow.add_node("enhance", quality_enhancement_node)
-workflow.add_node("format", final_formatting_node)
-
-# Define the flow for educational thread generation
-workflow.set_entry_point("research")
-workflow.add_edge("research", "architect")
-workflow.add_edge("architect", "create")
-workflow.add_edge("create", "enhance")
-workflow.add_edge("enhance", "format")
-
-# Compile the enhanced application
-app = workflow.compile()
-
-print("✅ Enhanced Educational Thread Creator loaded successfully!")
-print("🎯 Optimized for comprehensive, educational Twitter threads")
-print("📚 Uses deep content from vector stores for substantial value")
+# Then create content for new project
+new_thread = creator.create_twitter_thread("smart contracts", thread_length=5)
+"""
