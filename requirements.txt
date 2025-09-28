@@ -1,13 +1,17 @@
-# requirements.txt
 streamlit
 langchain
 langchain-community
 langchain-core
 langchain-groq
-huggingface-hub
-sentence-transformers
+langchain-huggingface
 chromadb
+sentence-transformers
+python-dotenv
+PyPDF2
+python-docx
+transformers
+torch
+numpy
+requests
 beautifulsoup4
-unstructured
-pypdf
-#python-magic-bin
+lxml
