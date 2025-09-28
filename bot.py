@@ -15,12 +15,19 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 # IMPORTANT: Replace with environment variable loading in a real application
 groq_api_key="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"
 
+# bot.py (around line 23)
+
 class SimpleContentCreator:
     def __init__(self, groq_api_key: str):
-        # NOTE: Using a hypothetical model name since 'llama-3.3-70b-versatile' 
-        # is not a standard Groq model. I'll use Llama 3 70b as a replacement.
-        self.llm = ChatGroq(model="llama-3-70b-8192", api_key=groq_api_key)
-        self.embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+        # ... existing LLM and splitter setup ...
+
+        # --- FIX: Explicitly set device to 'cpu' to resolve NotImplementedError ---
+        self.embeddings = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-mpnet-base-v2",
+            model_kwargs={'device': 'cpu'} # <--- ADD THIS LINE
+        )
+        # --- END FIX ---
+        
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
             chunk_overlap=200
