@@ -2,5 +2,5 @@
 fileWatcherType = "none"
 runOnSave = false
 
-[global]
-dataFrameSerialization = "arrow"
+#[global]
+#dataFrameSerialization = "arrow"
