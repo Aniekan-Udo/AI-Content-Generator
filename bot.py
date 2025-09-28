@@ -13,7 +13,7 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 
 # IMPORTANT: Replace with environment variable loading in a real application
-groq_api_key="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"
+groq_api_key = os.getenv("GROQ_API_KEY")
 
 # bot.py (around line 23)
 
@@ -24,7 +24,7 @@ class SimpleContentCreator:
         # --- FIX: Explicitly set device to 'cpu' to resolve NotImplementedError ---
         self.embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-mpnet-base-v2",
-            model_kwargs={'device': 'cpu'} # <--- ADD THIS LINE
+            model_kwargs={'device': 'cpu'} 
         )
         # --- END FIX ---
         

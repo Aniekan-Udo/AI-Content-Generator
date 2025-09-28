@@ -103,7 +103,7 @@ def process_project_data(project_name, urls_text, uploaded_files, extra_text, cr
 # --- Streamlit UI ---
 
 st.set_page_config(page_title="Kaito Content Creator Bot", layout="wide")
-st.title("🤖 Kaito Content Creator Bot")
+st.title("Content Creator Bot")
 
 if 'creator' not in st.session_state:
     st.session_state['creator'] = create_content_system(groq_api_key)
