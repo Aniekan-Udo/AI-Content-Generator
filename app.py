@@ -75,7 +75,7 @@ def process_project_data(creator, project_name, urls_list, uploaded_files, addit
         creator.setup_project(
             project_name=project_name,
             urls=urls_list,
-            whitepaper_path=None  # We're not using file paths, just text content
+            docs_path=None  # We're not using file paths, just text content
         )
         
         # If we have combined text content, we need to add it to the vector store
@@ -276,8 +276,8 @@ def main():
             if content_type == "Twitter Thread":
                 thread_length = st.number_input(
                     "Number of tweets", 
-                    min_value=3, 
-                    max_value=20, 
+                    min_value=1, 
+                    max_value=10, 
                     value=6,
                     help="How many tweets in the thread"
                 )
