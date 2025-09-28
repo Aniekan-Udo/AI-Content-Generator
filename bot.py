@@ -23,7 +23,7 @@ class SimpleContentCreator:
         self.project_name = None
         self.vector_store = None
         
-    def setup_project(self, project_name: str, urls: List[str], whitepaper_path: str = None):
+    def setup_project(self, project_name: str, urls: List[str], docs_path: str = None):
         """Setup project by loading documents from specified URLs and whitepaper"""
         print(f"Setting up project: {project_name}")
         print(f"Processing {len(urls)} URLs...")
@@ -44,10 +44,10 @@ class SimpleContentCreator:
                 print(f"  Error loading {url}: {str(e)}")
             
         # Process whitepaper if provided
-        if whitepaper_path and os.path.exists(whitepaper_path):
-            print(f"Processing whitepaper: {whitepaper_path}")
+        if docs_path and os.path.exists(docs_path):
+            print(f"Processing whitepaper: {docs_path}")
             try:
-                loader = TextLoader(whitepaper_path)
+                loader = TextLoader(docs_path)
                 docs = loader.load()
                 chunks = self.text_splitter.split_documents(docs)
                 all_documents.extend(chunks)
@@ -131,8 +131,8 @@ class SimpleContentCreator:
 CRITICAL CREATIVITY MANDATE: You MUST create completely ORIGINAL content that has NEVER been written before. This is not just another generic crypto thread - discover hidden angles, controversial takes, and unexplored perspectives within "{topic}" for {self.project_name}.
 
 ABSOLUTE REQUIREMENTS FOR UNIQUENESS:
-🚫 FORBIDDEN: Generic definitions, basic explanations, obvious benefits, standard comparisons, predictable structures
-✅ REQUIRED: Contrarian insights, hidden mechanics, counterintuitive truths, fresh mental models, unexplored connections
+FORBIDDEN: Generic definitions, basic explanations, obvious benefits, standard comparisons, predictable structures
+REQUIRED: Contrarian insights, hidden mechanics, counterintuitive truths, fresh mental models, unexplored connections
 
 Choose ONE of these FRESH approaches (never pick the same twice):
 1. "The Hidden Cost Perspective" - What nobody talks about regarding {topic}
@@ -183,6 +183,8 @@ Create content so original and insightful that it becomes the definitive thread 
 """
         response = self.llm.invoke([HumanMessage(content=prompt)])
         return response.content
+    
+    
     
     def create_blog_post(self, topic: str, length: str = "medium") -> str:
         """Create blog post using comprehensive research"""
@@ -309,44 +311,3 @@ Create content so revolutionary that it becomes required reading for anyone seri
 def create_content_system(groq_api_key: str):
     """Initialize the content creation system"""
     return SimpleContentCreator(groq_api_key)
-
-# Example usage:
-"""
-# Initialize
-creator = create_content_system("your_groq_api_key_here")
-
-# Setup any project with manually selected important URLs
-creator.setup_project(
-    project_name="Solana",
-    urls=[
-        "https://docs.solana.com/introduction",
-        "https://docs.solana.com/consensus",
-        "https://docs.solana.com/validators",
-        "https://docs.solana.com/developing/programming-model",
-        "https://docs.solana.com/cluster/overview"
-    ],
-    whitepaper_path="solana_whitepaper.pdf"  # optional
-)
-
-# Create ONLY tweets
-thread = creator.create_twitter_thread("consensus mechanisms", thread_length=7)
-print(thread)
-
-# OR create ONLY blog post  
-blog = creator.create_blog_post("validator economics", length="long")
-print(blog)
-
-# Switch to different project
-creator.setup_project(
-    project_name="Ethereum", 
-    urls=[
-        "https://ethereum.org/en/developers/docs/intro-to-ethereum/",
-        "https://ethereum.org/en/developers/docs/consensus-mechanisms/",
-        "https://ethereum.org/en/developers/docs/evm/",
-        "https://ethereum.org/en/developers/docs/smart-contracts/"
-    ]
-)
-
-# Then create content for new project
-new_thread = creator.create_twitter_thread("smart contracts", thread_length=5)
-"""

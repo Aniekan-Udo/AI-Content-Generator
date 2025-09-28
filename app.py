@@ -276,8 +276,8 @@ def main():
             if content_type == "Twitter Thread":
                 thread_length = st.number_input(
                     "Number of tweets", 
-                    min_value=3, 
-                    max_value=20, 
+                    min_value=1, 
+                    max_value=10, 
                     value=6,
                     help="How many tweets in the thread"
                 )
