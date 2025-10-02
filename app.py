@@ -10,7 +10,7 @@ os.environ["USER_AGENT"] = os.getenv("USER_AGENT", "ai-content-generator/0.1")
 os.environ['STREAMLIT_SERVER_FILE_WATCHER_TYPE'] = 'none'
 
 # Hardcoded API key
-GROQ_API_KEY = "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"
+GROQ_API_KEY = "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"
 
 # Import your existing bot class
 try:
