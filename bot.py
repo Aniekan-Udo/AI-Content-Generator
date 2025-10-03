@@ -14,11 +14,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class SimpleContentCreator:
-    def __init__(self, groq_api_key: str):
-        if not groq_api_key:
+    def __init__(self, GROQ_API_KEY: str):
+        if not GROQ_API_KEY:
             raise ValueError("GROQ API key is required")
         
-        self.llm = ChatGroq(model="llama-3.3-70b-versatile", api_key=groq_api_key)
+        self.llm = ChatGroq(model="llama-3.3-70b-versatile", api_key=GROQ_API_KEY)
         self.embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-mpnet-base-v2",
             model_kwargs={'device': 'cpu'}
