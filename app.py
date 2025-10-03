@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import time
 from typing import List
 
-load_dotenv(dotenv_path="C:/Users/HP/Desktop/Twitter Thread Creator/.env")
+load_dotenv()
 
 import os
 os.environ["USER_AGENT"] = os.getenv("USER_AGENT", "ai-content-generator/0.1")
