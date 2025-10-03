@@ -12,8 +12,9 @@ os.environ["USER_AGENT"] = os.getenv("USER_AGENT", "ai-content-generator/0.1")
 # To remove the system has reached its maximum watch limit
 os.environ['STREAMLIT_SERVER_FILE_WATCHER_TYPE'] = 'none'
 
-# Hardcoded API key
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+
 
 # Import your existing bot class
 try:
