@@ -14,6 +14,8 @@ os.environ['STREAMLIT_SERVER_FILE_WATCHER_TYPE'] = 'none'
 
 # Hardcoded API key
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+if not GROQ_API_KEY:
+    raise ValueError("GROQ_API_KEY environment variable not set.")
 
 # Import your existing bot class
 try:
