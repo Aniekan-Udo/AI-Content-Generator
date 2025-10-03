@@ -1,6 +1,6 @@
 import os
 import streamlit as st
-from dotenv import load_dotenv()
+from dotenv import load_dotenv
 import time
 from typing import List
 
