@@ -24,7 +24,7 @@ class SimpleContentCreator:
             model_kwargs={'device': 'cpu'}
         )
         self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
+            chunk_size=800,
             chunk_overlap=200
         )
         self.project_name = None
@@ -74,7 +74,7 @@ class SimpleContentCreator:
         else:
             print("Warning: No documents were loaded")
   
-    def create_twitter_thread(self, topic: str, thread_length: int = 6) -> str:
+    def create_twitter_thread(self, topic: str) -> str:
         """Create Twitter thread using comprehensive research"""
         if not self.vector_store:
             return "Error: No project setup. Run setup_project() first."
@@ -82,62 +82,156 @@ class SimpleContentCreator:
         print(f"Creating Twitter thread about: {topic}")
       
         # Get comprehensive research from ALL documents
-        docs = self.vector_store.similarity_search(topic, k=25)
+        docs = self.vector_store.similarity_search(topic, k=50)
         research_content = "\n".join([doc.page_content for doc in docs])
       
         prompt = f"""
-        CRITICAL CREATIVITY MANDATE: You MUST create completely ORIGINAL content that has NEVER been written before. This is not just another generic crypto thread - discover hidden angles, controversial takes, and unexplored perspectives within "{topic}" for {self.project_name}.
+        YOUR MISSION: Create a compelling, data-rich analysis of "{topic}" for {self.project_name} that reads like professional trading research - clear, bold, and impossible to ignore.
         
-        ABSOLUTE REQUIREMENTS FOR UNIQUENESS:
-        🚫 FORBIDDEN: Generic definitions, basic explanations, obvious benefits, standard comparisons, predictable structures
-        ✅ REQUIRED: Contrarian insights, hidden mechanics, counterintuitive truths, fresh mental models, unexplored connections
+        ═══════════════════════════════════════════════════
+        STEP 1: DEEP RESEARCH & DATA EXTRACTION
+        ═══════════════════════════════════════════════════
         
-        Choose ONE of these FRESH approaches (never pick the same twice):
-        1. "The Hidden Cost Perspective" - What nobody talks about regarding {topic}
-        2. "The Contrarian Take" - Challenge conventional wisdom about {topic}
-        3. "The Technical Deep Dive" - Microscopic analysis of overlooked mechanics
-        4. "The Historical Evolution" - How {topic} emerged and morphed in {self.project_name}
-        5. "The Future Speculation" - Radical predictions about {topic}'s evolution
-        6. "The Ecosystem Impact" - Ripple effects and unexpected consequences
-        7. "The Developer's Secret" - Insider technical knowledge about {topic}
-        8. "The Economic Game Theory" - Strategic implications and incentive analysis
-        9. "The User Experience Lens" - How {topic} actually affects real users
-        10. "The Philosophical Angle" - Deeper implications for crypto's future
-        
-        CREATIVE EXECUTION RULES:
-        - Start with a SHOCKING statement or counterintuitive claim about {topic}
-        - Use unexpected analogies (compare crypto concepts to biology, physics, psychology, etc.)
-        - Reveal "secrets" or little-known technical details
-        - Challenge popular assumptions with evidence from the research
-        - Present familiar concepts through completely new frameworks
-        - Ask provocative questions that make people think differently
-        - End with mind-bending implications or predictions
-        
-        BANNED PHRASES/APPROACHES:
-        - "Let's break down..."
-        - "Here's why [topic] matters..."
-        - "The benefits of..."
-        - Any explanation that starts with basic definitions
-        - Generic feature lists
-        - Obvious use cases everyone knows
-        
-        Use this comprehensive research to find UNIQUE angles and hidden insights:
+        Thoroughly analyze all research materials:
         {research_content}
         
-        THREAD REQUIREMENTS:
-        - Create exactly {thread_length} tweets that shock, educate, and provoke thought
-        - Each tweet must reveal something most people don't know about {topic}
-        - Build a narrative that's impossible to ignore
-        - Include specific technical details presented in revolutionary ways
-        - Make readers say "I never thought about it that way"
+        Extract and note:
+        - Specific numbers, percentages, rankings
+        - Time periods and dates
+        - Comparisons to competitors or alternatives
+        - Volume metrics, user counts, transaction data
+        - Any "first" or "only" claims you can make
+        - Historical patterns or cycles
+        - Concrete examples and case studies
         
-        Format as:
-        1/{thread_length}: [mind-blowing opener with counterintuitive claim]
-        2/{thread_length}: [supporting evidence that surprises]
-        ...continue with escalating insights...
-        {thread_length}/{thread_length}: [paradigm-shifting conclusion]
+        ═══════════════════════════════════════════════════
+        STEP 2: FIND YOUR CORE THESIS
+        ═══════════════════════════════════════════════════
         
-        Create content so original and insightful that it becomes the definitive thread about this aspect of {topic} in {self.project_name}.
+        Identify the single most compelling insight about {topic}:
+        - What's the one thing people NEED to understand?
+        - What pattern or trend does the data reveal?
+        - What's the counterintuitive truth hiding in plain sight?
+        - What prediction or conclusion does the evidence support?
+        
+        This becomes your italicized opening statement.
+        
+        ═══════════════════════════════════════════════════
+        STEP 3: BUILD YOUR ARGUMENT STRUCTURE
+        ═══════════════════════════════════════════════════
+        
+        Structure your content like this:
+        
+        **OPENING (1-2 paragraphs):**
+        - Start with your thesis in *italics* - make it quotable and memorable
+        - Immediately provide context or explanation
+        - Reference historical precedent or pattern if applicable
+        - Keep it simple enough for beginners to grasp
+        
+        **MAIN EVIDENCE (2-4 paragraphs):**
+        - Present your strongest data point in **bold**
+        - Add supporting context in regular text
+        - Use specific numbers, rankings, timeframes
+        - Compare to other examples or alternatives
+        - Add another **bold claim** with evidence
+        - Build momentum - each paragraph should strengthen your case
+        
+        **SUPPORTING FACTORS (bullet list):**
+        Introduce with: "when you add to this the fact that:" or similar
+        
+        Then use bullet points (- or •) for:
+        - 4-7 additional supporting points
+        - Each bullet should be substantial (1-3 lines)
+        - Include specific details, not vague claims
+        - Mix different types of evidence (narrative, adoption, metrics, timing)
+        - Keep language simple but assertive
+        
+        **CONCLUSION (1 paragraph):**
+        - Synthesize everything into a clear takeaway
+        - Make the implication obvious
+        - End with confidence - what does this all mean?
+        
+        ═══════════════════════════════════════════════════
+        FORMATTING RULES (CRITICAL)
+        ═══════════════════════════════════════════════════
+        
+        Use formatting strategically to guide the reader's eye:
+        
+        *Italics* (use *asterisks*):
+        - Opening thesis statement
+        - Key quotes or concepts
+        - Emphasis on important phrases
+        
+        **Bold** (use **double asterisks**):
+        - Your 1-2 most critical data points or claims
+        - Numbers and metrics that prove your thesis
+        - "Shocking" facts that make people stop scrolling
+        
+        Bullet points (use - or •):
+        - Lists of supporting evidence
+        - Multiple factors or reasons
+        - Easy-to-scan value propositions
+        
+        Paragraph breaks:
+        - Create white space for readability
+        - Separate different ideas or evidence types
+        - Guide the reader through your argument
+        
+        ═══════════════════════════════════════════════════
+        WRITING STYLE REQUIREMENTS
+        ═══════════════════════════════════════════════════
+        
+        TONE: Confident, data-driven, assertive (not hype-y)
+        - State facts with conviction
+        - Let the data speak for itself
+        - Avoid unnecessary qualifiers ("might," "could," "possibly")
+        - Use present tense for immediacy
+        
+        LANGUAGE: Clear and accessible
+        - Explain technical terms in parentheses immediately
+        - Use analogies to familiar concepts when helpful
+        - Short sentences for impact. Longer ones for context.
+        - No jargon walls - a smart beginner should follow along
+        
+        SPECIFICITY: Always choose concrete over vague
+        - "100x from $4m to $440m" NOT "grew significantly"
+        - "3rd most-traded memecoin" NOT "very popular"
+        - "4 months ago" NOT "recently"
+        - "80% of the time" NOT "usually"
+        
+        ═══════════════════════════════════════════════════
+        OUTPUT FORMAT
+        ═══════════════════════════════════════════════════
+        
+        Create a SINGLE, LONG-FORM piece (not a numbered thread) with:
+        
+        - 800-1500 characters total (substantial but readable)
+        - Strategic formatting throughout (italics, bold, bullets)
+        - Clear paragraph breaks for visual flow
+        - A narrative arc that builds to a conclusion
+        - At least 3-5 specific data points from research
+        - Simple language that beginners can understand
+        
+        ═══════════════════════════════════════════════════
+        QUALITY CHECKLIST
+        ═══════════════════════════════════════════════════
+        
+        Before submitting, verify:
+        
+        ✓ Opening thesis is italicized and memorable
+        ✓ 1-2 critical claims are bolded for emphasis
+        ✓ At least 5 specific data points or metrics included
+        ✓ Bullet list format used for supporting evidence
+        ✓ Clear paragraph breaks create visual breathing room
+        ✓ Language is simple enough for crypto beginners
+        ✓ Tone is confident and data-driven, not hype-y
+        ✓ Every claim is backed by research materials
+        ✓ Reads smoothly from thesis → evidence → conclusion
+        ✓ Would make someone stop scrolling and read carefully
+        
+        ═══════════════════════════════════════════════════
+        
+        Now create a compelling analysis of {topic} for {self.project_name} that combines the clarity of great research with the punch of bold formatting. Make it impossible to ignore.
         """
         
         response = self.llm.invoke([HumanMessage(content=prompt)])

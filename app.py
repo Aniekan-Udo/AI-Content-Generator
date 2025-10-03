@@ -238,20 +238,20 @@ def main():
         )
       
         col1, col2, col3 = st.columns([2, 2, 1])
-      
+
         with col1:
             content_type = st.selectbox("Content Type", ["Twitter Thread", "Blog Post"])
-      
+
         with col2:
-            if content_type == "Twitter Thread":
-                thread_length = st.number_input("Number of tweets", min_value=1, max_value=20, value=6)
-            else:
+            if content_type == "Blog Post":  # Only show options for blog posts now
                 blog_length = st.selectbox("Blog length", ["short", "medium", "long"], index=1)
-      
+            else:
+                st.write("")  # Empty space to keep layout consistent
+
         with col3:
             st.write("")
             generate_button = st.button("🎯 Generate", type="primary")
-      
+            
         if generate_button:
             if not user_prompt.strip():
                 st.error("Please enter what you want to write about!")
@@ -259,7 +259,7 @@ def main():
                 with st.spinner("Creating content..."):
                     try:
                         if content_type == "Twitter Thread":
-                            content = st.session_state.creator.create_twitter_thread(user_prompt, thread_length)
+                            content = st.session_state.creator.create_twitter_thread(user_prompt)
                         else:
                             content = st.session_state.creator.create_blog_post(user_prompt, blog_length)
                       
