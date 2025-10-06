@@ -78,18 +78,18 @@ class SimpleContentCreator:
         """Create Twitter thread using comprehensive research"""
         if not self.vector_store:
             return "Error: No project setup. Run setup_project() first."
-        
+          
         print(f"Creating Twitter thread about: {topic}")
-    
+      
         # Get comprehensive research from ALL documents
         docs = self.vector_store.similarity_search(topic, k=50)
         research_content = "\n".join([doc.page_content for doc in docs])
-    
+      
         prompt = f"""
         YOUR MISSION: Create a compelling, data-rich analysis of "{topic}" for {self.project_name} that reads like professional trading research - clear, bold, and impossible to ignore.
         
         ═══════════════════════════════════════════════════
-        DEEP RESEARCH & DATA EXTRACTION
+        STEP 1: DEEP RESEARCH & DATA EXTRACTION
         ═══════════════════════════════════════════════════
         
         Thoroughly analyze all research materials:
@@ -105,73 +105,80 @@ class SimpleContentCreator:
         - Concrete examples and case studies
         
         ═══════════════════════════════════════════════════
-        CONTENT APPROACH - CHOOSE WHAT FITS BEST
+        STEP 2: FIND YOUR CORE THESIS
         ═══════════════════════════════════════════════════
         
-        Based on your research and what story the data tells, choose the most natural structure. Here are proven approaches you can use:
+        Identify the single most compelling insight about {topic}:
+        - What's the one thing people NEED to understand?
+        - What pattern or trend does the data reveal?
+        - What's the counterintuitive truth hiding in plain sight?
+        - What prediction or conclusion does the evidence support?
         
-        **OPTION A - Classic Thesis-Driven** (great for big picture insights):
-        - Open with *italicized thesis* that captures the main insight
-        - Present **bold data points** that prove your thesis
-        - Add bullet list of supporting evidence
-        - Conclude with clear takeaway
-        
-        **OPTION B - Data-First Impact** (when you have shocking numbers):
-        - Lead with **bold shocking statistic** 
-        - Explain what this means and why it matters
-        - Layer in additional context and evidence
-        - End with implications
-        
-        **OPTION C - Narrative Flow** (for complex stories):
-        - Set up the situation or context
-        - Walk through the evidence chronologically or logically
-        - Use formatting to highlight key moments
-        - Build to a powerful conclusion
-        
-        **OPTION D - Comparison Framework** (for relative positioning):
-        - Present the comparison or contrast
-        - Break down the specific differences with data
-        - Use bullets to list key differentiators
-        - Synthesize what this reveals
-        
-        **OPTION E - Question-Answer** (for addressing misconceptions):
-        - Pose the question or misconception
-        - Systematically address it with evidence
-        - Use formatting to emphasize key answers
-        - Conclude with the truth
-        
-        You can also blend these approaches or create your own structure - whatever lets the data and insights flow most naturally for THIS specific topic.
+        This becomes your italicized opening statement.
         
         ═══════════════════════════════════════════════════
-        FORMATTING TOOLS - USE STRATEGICALLY
+        STEP 3: BUILD YOUR ARGUMENT STRUCTURE
         ═══════════════════════════════════════════════════
+        
+        Structure your content like this:
+        
+        **OPENING (1-2 paragraphs):**
+        - Start with your thesis in *italics* - make it quotable and memorable
+        - Immediately provide context or explanation
+        - Reference historical precedent or pattern if applicable
+        - Keep it simple enough for beginners to grasp
+        
+        **MAIN EVIDENCE (2-4 paragraphs):**
+        - Present your strongest data point in **bold**
+        - Add supporting context in regular text
+        - Use specific numbers, rankings, timeframes
+        - Compare to other examples or alternatives
+        - Add another **bold claim** with evidence
+        - Build momentum - each paragraph should strengthen your case
+        
+        **SUPPORTING FACTORS (bullet list):**
+        Introduce with: "when you add to this the fact that:" or similar
+        
+        Then use bullet points (- or •) for:
+        - 4-7 additional supporting points
+        - Each bullet should be substantial (1-3 lines)
+        - Include specific details, not vague claims
+        - Mix different types of evidence (narrative, adoption, metrics, timing)
+        - Keep language simple but assertive
+        
+        **CONCLUSION (1 paragraph):**
+        - Synthesize everything into a clear takeaway
+        - Make the implication obvious
+        - End with confidence - what does this all mean?
+        
+        ═══════════════════════════════════════════════════
+        FORMATTING RULES (CRITICAL)
+        ═══════════════════════════════════════════════════
+        
+        Use formatting strategically to guide the reader's eye:
         
         *Italics* (use *asterisks*):
-        - Core thesis statements
-        - Key concepts or quotes
+        - Opening thesis statement
+        - Key quotes or concepts
         - Emphasis on important phrases
-        - Questions you're answering
         
         **Bold** (use **double asterisks**):
         - Your 1-2 most critical data points or claims
-        - Numbers and metrics that prove your point
+        - Numbers and metrics that prove your thesis
         - "Shocking" facts that make people stop scrolling
-        - Strong opening statements when appropriate
         
         Bullet points (use - or •):
         - Lists of supporting evidence
         - Multiple factors or reasons
-        - Easy-to-scan supporting points
-        - When you have 4+ related items
+        - Easy-to-scan value propositions
         
         Paragraph breaks:
         - Create white space for readability
-        - Separate different ideas
+        - Separate different ideas or evidence types
         - Guide the reader through your argument
-        - Don't be afraid of single-sentence paragraphs for impact
         
         ═══════════════════════════════════════════════════
-        WRITING PRINCIPLES (NON-NEGOTIABLE)
+        WRITING STYLE REQUIREMENTS
         ═══════════════════════════════════════════════════
         
         TONE: Confident, data-driven, assertive (not hype-y)
@@ -193,18 +200,17 @@ class SimpleContentCreator:
         - "80% of the time" NOT "usually"
         
         ═══════════════════════════════════════════════════
-        OUTPUT REQUIREMENTS
+        OUTPUT FORMAT
         ═══════════════════════════════════════════════════
         
-        Create a SINGLE, LONG-FORM piece with:
+        Create a SINGLE, LONG-FORM piece (not a numbered thread) with:
         
         - 800-1500 characters total (substantial but readable)
-        - Strategic formatting throughout (italics, bold, bullets where they fit)
+        - Strategic formatting throughout (italics, bold, bullets)
         - Clear paragraph breaks for visual flow
-        - A natural narrative that serves the content
+        - A narrative arc that builds to a conclusion
         - At least 3-5 specific data points from research
         - Simple language that beginners can understand
-        - Structure that feels organic to THIS topic
         
         ═══════════════════════════════════════════════════
         QUALITY CHECKLIST
@@ -212,25 +218,25 @@ class SimpleContentCreator:
         
         Before submitting, verify:
         
-        ✓ Structure feels natural and serves the content
-        ✓ Formatting enhances readability (not forced or excessive)
+        ✓ Opening thesis is italicized and memorable
+        ✓ 1-2 critical claims are bolded for emphasis
         ✓ At least 5 specific data points or metrics included
+        ✓ Bullet list format used for supporting evidence
         ✓ Clear paragraph breaks create visual breathing room
         ✓ Language is simple enough for crypto beginners
         ✓ Tone is confident and data-driven, not hype-y
         ✓ Every claim is backed by research materials
-        ✓ Flow feels smooth and logical
+        ✓ Reads smoothly from thesis → evidence → conclusion
         ✓ Would make someone stop scrolling and read carefully
-        ✓ Doesn't feel formulaic or templated
         
         ═══════════════════════════════════════════════════
         
-        Now create a compelling analysis of {topic} for {self.project_name}. Let the research guide your structure - choose whatever approach makes the data and insights shine most effectively. Make it impossible to ignore.
+        Now create a compelling analysis of {topic} for {self.project_name} that combines the clarity of great research with the punch of bold formatting. Make it impossible to ignore.
         """
         
         response = self.llm.invoke([HumanMessage(content=prompt)])
         return response.content
-        
+  
     def create_blog_post(self, topic: str, length: str = "medium") -> str:
         """Create blog post using comprehensive research"""
         if not self.vector_store:
