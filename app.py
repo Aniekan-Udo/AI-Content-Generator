@@ -14,7 +14,7 @@ os.environ["USER_AGENT"] = os.getenv("USER_AGENT", "ai-content-generator/0.1")
 os.environ['STREAMLIT_SERVER_FILE_WATCHER_TYPE'] = 'none'
 
 # Hardcoded API key
-GROQ_API_KEY = os.getenv("API_KEY")
+GROQ_API_KEY = "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"
 if not GROQ_API_KEY:
     raise ValueError("API_KEY environment variable not set.")
 
