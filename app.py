@@ -3,7 +3,8 @@ import streamlit as st
 from dotenv import load_dotenv
 import time
 from typing import List
-
+import PyPDF2
+from io import BytesIO
 load_dotenv()
 
 import os
@@ -13,9 +14,9 @@ os.environ["USER_AGENT"] = os.getenv("USER_AGENT", "ai-content-generator/0.1")
 os.environ['STREAMLIT_SERVER_FILE_WATCHER_TYPE'] = 'none'
 
 # Hardcoded API key
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_API_KEY = os.getenv("API_KEY")
 if not GROQ_API_KEY:
-    raise ValueError("GROQ_API_KEY environment variable not set.")
+    raise ValueError("API_KEY environment variable not set.")
 
 # Import your existing bot class
 try:
@@ -35,8 +36,7 @@ def extract_file_content(uploaded_file):
             return file_content.decode('utf-8')
         elif file_name.endswith('.pdf'):
             try:
-                import PyPDF2
-                from io import BytesIO
+                
                 pdf_reader = PyPDF2.PdfReader(BytesIO(file_content))
                 return "\n".join([page.extract_text() for page in pdf_reader.pages])
             except ImportError:
