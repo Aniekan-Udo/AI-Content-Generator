@@ -215,15 +215,20 @@ class CryptoContentCreator:
         - Guide readers through the lesson progression
         
         ═══════════════════════════════════════════════════
-        OUTPUT REQUIREMENTS
+        OUTPUT REQUIREMENTS - MODERATE LENGTH
         ═══════════════════════════════════════════════════
         
-        Create a SINGLE, LONG-FORM piece with:
+        Create a SINGLE, MODERATE-LENGTH piece with:
         
-        - 900-1500 characters (substantial, readable)
+        - 600-850 characters (moderate, not too short, not too long)
+        - Include ALL core information and key insights
         - Educational focus: teaches something concrete
         - Natural, engaging flow (not formulaic)
-        - At least 5-7 specific data points from research
+        - At least 4-6 specific data points from research
+        - Complete thoughts and explanations (don't cut corners)
+        - Pack maximum value into moderate space
+        
+        IMPORTANT: Ensure the tweet is SELF-CONTAINED with all essential information. Don't leave readers needing more context. All core insights, data points, and the main lesson should be present in this single tweet.
         
         ═══════════════════════════════════════════════════
         QUALITY CHECKLIST FOR KAITO
@@ -233,7 +238,7 @@ class CryptoContentCreator:
         
         ✓ Opens with a clear learning opportunity or misconception to correct
         ✓ Teaches a principle, mechanism, or pattern (not just facts)
-        ✓ At least 5-7 specific data points included from research
+        ✓ At least 4-6 specific data points included from research
         ✓ Explains the "why" behind concepts, not just the "what"
         ✓ Provides real crypto examples or applications
         ✓ Uses accurate terminology (shows credibility for Kaito)
@@ -241,6 +246,8 @@ class CryptoContentCreator:
         ✓ Concludes with actionable understanding
         ✓ Formatted for easy scanning and reference
         ✓ Every claim backed by research materials
+        ✓ Contains ALL core information (self-contained)
+        ✓ Moderate length (600-850 characters)
         ✓ Would make someone want to screenshot and save it
         ✓ Teaches something valuable, not just entertaining
         ✓ Could serve as educational reference material
@@ -248,7 +255,7 @@ class CryptoContentCreator:
         
         ═══════════════════════════════════════════════════
         
-        Now create an educational crypto thread about {topic} for {self.project_name} that teaches readers something valuable they didn't know. Make it clear, credible, and worth saving. Optimize for Kaito's educational rewards by combining genuine learning value with engaging delivery that makes complex concepts understandable.
+        Now create an educational crypto thread about {topic} for {self.project_name} that teaches readers something valuable they didn't know. Make it MODERATE LENGTH (600-850 characters), clear, credible, and worth saving. Include ALL core information in this single tweet. Optimize for Kaito's educational rewards by combining genuine learning value with engaging delivery that makes complex concepts understandable.
         """
         
         response = self.llm.invoke([HumanMessage(content=prompt)])

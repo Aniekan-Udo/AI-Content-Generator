@@ -245,10 +245,19 @@ def main():
             content_type = st.selectbox("Content Type", ["Twitter Thread", "Blog Post"])
 
         with col2:
-            if content_type == "Blog Post":  # Only show options for blog posts now
-                blog_length = st.selectbox("Blog length", ["short", "medium", "long"], index=1)
+            if content_type == "Twitter Thread":
+                tweet_length = st.selectbox(
+                    "Tweet length", 
+                    ["short", "medium", "long"], 
+                    index=1,
+                    help="Short: 400-600 chars | Medium: 600-850 chars | Long: 900-1500 chars"
+                )
             else:
-                st.write("")  # Empty space to keep layout consistent
+                blog_length = st.selectbox(
+                    "Blog length", 
+                    ["short", "medium", "long"], 
+                    index=1
+                )
 
         with col3:
             st.write("")
@@ -261,12 +270,24 @@ def main():
                 with st.spinner("Creating content..."):
                     try:
                         if content_type == "Twitter Thread":
-                            content = st.session_state.creator.create_twitter_thread(user_prompt)
+                            content = st.session_state.creator.create_twitter_thread(
+                                user_prompt, 
+                                length=tweet_length
+                            )
                         else:
-                            content = st.session_state.creator.create_blog_post(user_prompt, blog_length)
+                            content = st.session_state.creator.create_blog_post(
+                                user_prompt, 
+                                length=blog_length
+                            )
                       
                         if content and not content.startswith("Error:"):
                             st.success("✅ Content generated!")
+                            
+                            # Show character count for Twitter threads
+                            if content_type == "Twitter Thread":
+                                char_count = len(content)
+                                st.info(f"📊 Character count: {char_count}")
+                            
                             st.text_area("Generated Content", content, height=500)
                             
                             file_extension = "txt" if content_type == "Twitter Thread" else "md"
