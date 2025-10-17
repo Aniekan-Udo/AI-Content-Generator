@@ -74,16 +74,42 @@ class CryptoContentCreator:
         else:
             print("Warning: No documents were loaded")
   
-    def create_twitter_thread(self, topic: str) -> str:
-        """Create educational crypto Twitter thread optimized for Kaito rewards"""
+    def create_twitter_thread(self, topic: str, length: str = "medium") -> str:
+        """Create educational crypto Twitter thread optimized for Kaito rewards
+        
+        Args:
+            topic: The topic to write about
+            length: Tweet length - 'short' (400-600 chars), 'medium' (600-850 chars), or 'long' (900-1500 chars)
+        """
         if not self.vector_store:
             return "Error: No project setup. Run setup_project() first."
           
-        print(f"Creating educational crypto thread about: {topic}")
+        print(f"Creating {length} educational crypto thread about: {topic}")
       
         # Get comprehensive research from ALL documents
         docs = self.vector_store.similarity_search(topic, k=50)
         research_content = "\n".join([doc.page_content for doc in docs])
+        
+        # Define length specifications
+        length_specs = {
+            "short": {
+                "chars": "400-600 characters (concise and punchy)",
+                "data_points": "3-4 specific data points",
+                "style": "Quick, impactful insights. Get to the point fast."
+            },
+            "medium": {
+                "chars": "600-850 characters (moderate, balanced)",
+                "data_points": "4-6 specific data points",
+                "style": "Balanced depth with clarity. Comfortable reading length."
+            },
+            "long": {
+                "chars": "900-1500 characters (comprehensive and detailed)",
+                "data_points": "6-8 specific data points",
+                "style": "Deep dive with full context. Maximum educational value."
+            }
+        }
+        
+        spec = length_specs.get(length, length_specs["medium"])
       
         prompt = f"""
         YOUR MISSION: Create an educational crypto Twitter thread about "{topic}" for {self.project_name} that teaches readers something valuable they didn't know before. Optimize for Kaito's educational rewards by combining genuine learning value with engaging delivery.
@@ -215,18 +241,20 @@ class CryptoContentCreator:
         - Guide readers through the lesson progression
         
         ═══════════════════════════════════════════════════
-        OUTPUT REQUIREMENTS - MODERATE LENGTH
+        OUTPUT REQUIREMENTS - {length.upper()} LENGTH
         ═══════════════════════════════════════════════════
         
-        Create a SINGLE, MODERATE-LENGTH piece with:
+        Create a SINGLE piece with these specifications:
         
-        - 600-850 characters (moderate, not too short, not too long)
+        LENGTH: {spec['chars']}
+        DATA POINTS: At least {spec['data_points']} from research
+        STYLE: {spec['style']}
+        
         - Include ALL core information and key insights
         - Educational focus: teaches something concrete
         - Natural, engaging flow (not formulaic)
-        - At least 4-6 specific data points from research
         - Complete thoughts and explanations (don't cut corners)
-        - Pack maximum value into moderate space
+        - Pack maximum value into the specified space
         
         IMPORTANT: Ensure the tweet is SELF-CONTAINED with all essential information. Don't leave readers needing more context. All core insights, data points, and the main lesson should be present in this single tweet.
         
@@ -238,7 +266,7 @@ class CryptoContentCreator:
         
         ✓ Opens with a clear learning opportunity or misconception to correct
         ✓ Teaches a principle, mechanism, or pattern (not just facts)
-        ✓ At least 4-6 specific data points included from research
+        ✓ Includes the specified number of data points from research
         ✓ Explains the "why" behind concepts, not just the "what"
         ✓ Provides real crypto examples or applications
         ✓ Uses accurate terminology (shows credibility for Kaito)
@@ -247,7 +275,7 @@ class CryptoContentCreator:
         ✓ Formatted for easy scanning and reference
         ✓ Every claim backed by research materials
         ✓ Contains ALL core information (self-contained)
-        ✓ Moderate length (600-850 characters)
+        ✓ Matches the {length.upper()} length specification ({spec['chars']})
         ✓ Would make someone want to screenshot and save it
         ✓ Teaches something valuable, not just entertaining
         ✓ Could serve as educational reference material
@@ -255,7 +283,7 @@ class CryptoContentCreator:
         
         ═══════════════════════════════════════════════════
         
-        Now create an educational crypto thread about {topic} for {self.project_name} that teaches readers something valuable they didn't know. Make it MODERATE LENGTH (600-850 characters), clear, credible, and worth saving. Include ALL core information in this single tweet. Optimize for Kaito's educational rewards by combining genuine learning value with engaging delivery that makes complex concepts understandable.
+        Now create an educational crypto thread about {topic} for {self.project_name} that teaches readers something valuable they didn't know. Make it {length.upper()} LENGTH ({spec['chars']}), clear, credible, and worth saving. Include ALL core information in this single tweet. Optimize for Kaito's educational rewards by combining genuine learning value with engaging delivery that makes complex concepts understandable.
         """
         
         response = self.llm.invoke([HumanMessage(content=prompt)])
