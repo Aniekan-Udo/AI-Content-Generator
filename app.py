@@ -20,10 +20,10 @@ if not GROQ_API_KEY:
 
 # Import your existing bot class
 try:
-    from bot import SimpleContentCreator
-    print("Successfully imported SimpleContentCreator")
+    from bot import CryptoContentCreator
+    print("Successfully imported CryptoContentCreator")
 except ImportError as e:
-    st.error(f"Could not import SimpleContentCreator from bot.py: {e}")
+    st.error(f"Could not import CryptoContentCreator from bot.py: {e}")
     st.stop()
 
 def extract_file_content(uploaded_file):
@@ -128,7 +128,7 @@ def main():
     # Initialize session state
     if 'creator' not in st.session_state:
         try:
-            st.session_state.creator = SimpleContentCreator(GROQ_API_KEY)
+            st.session_state.creator = CryptoContentCreator(GROQ_API_KEY)
         except Exception as e:
             st.error(f"Error initializing content creator: {str(e)}")
             st.stop()
