@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-class SimpleContentCreator:
+class CryptoContentCreator:
     def __init__(self, API_KEY: str):
         if not API_KEY:
             raise ValueError("GROQ API key is required")
@@ -75,18 +75,18 @@ class SimpleContentCreator:
             print("Warning: No documents were loaded")
   
     def create_twitter_thread(self, topic: str) -> str:
-        """Create Twitter thread using comprehensive research"""
+        """Create educational crypto Twitter thread optimized for Kaito rewards"""
         if not self.vector_store:
             return "Error: No project setup. Run setup_project() first."
           
-        print(f"Creating Twitter thread about: {topic}")
+        print(f"Creating educational crypto thread about: {topic}")
       
         # Get comprehensive research from ALL documents
         docs = self.vector_store.similarity_search(topic, k=50)
         research_content = "\n".join([doc.page_content for doc in docs])
       
         prompt = f"""
-        YOUR MISSION: Create a compelling, data-rich analysis of "{topic}" for {self.project_name} that reads like professional trading research - clear, bold, and impossible to ignore.
+        YOUR MISSION: Create an educational crypto Twitter thread about "{topic}" for {self.project_name} that teaches readers something valuable they didn't know before. Optimize for Kaito's educational rewards by combining genuine learning value with engaging delivery.
         
         ═══════════════════════════════════════════════════
         STEP 1: DEEP RESEARCH & DATA EXTRACTION
@@ -103,135 +103,152 @@ class SimpleContentCreator:
         - Any "first" or "only" claims you can make
         - Historical patterns or cycles
         - Concrete examples and case studies
+        - Technical mechanics or how things work
         
         ═══════════════════════════════════════════════════
-        STEP 2: FIND YOUR CORE THESIS
+        STEP 2: IDENTIFY THE KNOWLEDGE GAP
         ═══════════════════════════════════════════════════
         
-        Identify the single most compelling insight about {topic}:
-        - What's the one thing people NEED to understand?
-        - What pattern or trend does the data reveal?
-        - What's the counterintuitive truth hiding in plain sight?
-        - What prediction or conclusion does the evidence support?
+        Find what people DON'T understand about {topic}:
+        - What misconception is most common?
+        - What hidden mechanism does nobody talk about?
+        - What principle applies here that people miss?
+        - What would change someone's strategy if they knew it?
+        - What counter-intuitive truth does data reveal?
         
-        This becomes your italicized opening statement.
+        This gap is your teaching opportunity.
         
         ═══════════════════════════════════════════════════
-        STEP 3: BUILD YOUR ARGUMENT STRUCTURE
+        STEP 3: BUILD YOUR EDUCATIONAL NARRATIVE
         ═══════════════════════════════════════════════════
         
         Structure your content like this:
         
-        **OPENING (1-2 paragraphs):**
-        - Start with your thesis in *italics* - make it quotable and memorable
-        - Immediately provide context or explanation
-        - Reference historical precedent or pattern if applicable
-        - Keep it simple enough for beginners to grasp
+        **OPENING:**
+        - Start with something that catches attention: a misconception, gap, or interesting observation
+        - Could be: "Most people think...", "Here's what nobody talks about...", "Ever wonder why...", or just "Something's off about {topic}"
+        - Or jump straight into a surprising fact if it's compelling
+        - Make it conversational—this can be relaxed and natural
         
-        **MAIN EVIDENCE (2-4 paragraphs):**
-        - Present your strongest data point in **bold**
-        - Add supporting context in regular text
-        - Use specific numbers, rankings, timeframes
-        - Compare to other examples or alternatives
-        - Add another **bold claim** with evidence
-        - Build momentum - each paragraph should strengthen your case
+        **BODY (build naturally):**
+        - Teach the insight or principle, but don't force a rigid structure
+        - Use data and examples when they strengthen understanding
+        - Highlight key points in **bold** or *italics* where it feels right
+        - Connect concepts to real market behavior or events
+        - You can use bullets if it makes sense, but they're optional
+        - Let the narrative flow—don't check boxes
         
-        **SUPPORTING FACTORS (bullet list):**
-        Introduce with: "when you add to this the fact that:" or similar
-        
-        Then use bullet points (- or •) for:
-        - 4-7 additional supporting points
-        - Each bullet should be substantial (1-3 lines)
-        - Include specific details, not vague claims
-        - Mix different types of evidence (narrative, adoption, metrics, timing)
-        - Keep language simple but assertive
-        
-        **CONCLUSION (1 paragraph):**
-        - Synthesize everything into a clear takeaway
-        - Make the implication obvious
-        - End with confidence - what does this all mean?
+        **CLOSING:**
+        - Leave them with the core takeaway or principle
+        - Could be short, could be a few sentences
+        - Practical insight: "This is why...", "Watch for...", "Now you see why..."
+        - Or just end with the lesson itself if it stands alone
         
         ═══════════════════════════════════════════════════
-        FORMATTING RULES (CRITICAL)
+        KAITO EDUCATIONAL OPTIMIZATION
         ═══════════════════════════════════════════════════
         
-        Use formatting strategically to guide the reader's eye:
+        Kaito rewards high-quality educational content. Maximize this by:
+        
+        SEMANTIC VALUE:
+        - Every statement teaches something (no fluff)
+        - Use precise terminology correctly (shows expertise)
+        - Connect concepts to broader crypto principles
+        - Explain the "why" behind mechanisms, not just the "what"
+        
+        CREDIBILITY SIGNALS:
+        - Back claims with specific data from research
+        - Reference actual events, projects, or timeframes
+        - Show depth of understanding
+        - Acknowledge complexity where it exists
+        
+        Structure as a lesson with clear progression, but keep it natural:
+        - Identify and correct misconceptions when relevant
+        - Teach principles that apply broadly, not just surface facts
+        - Make the learning stick, but don't force a rigid format
+        - Let the best way to communicate emerge—sometimes that's bullets, sometimes it's narrative
+        
+        ═══════════════════════════════════════════════════
+        TONE & LANGUAGE
+        ═══════════════════════════════════════════════════
+        
+        TONE: Expert sharing insight naturally, not lecturing
+        - Conversational but credible
+        - Friendly and approachable
+        - Sound like you know what you're talking about without being stiff
+        - It's okay to be casual—you're teaching, not giving a speech
+        
+        CRYPTO-SPECIFIC LANGUAGE:
+        - Use crypto terms naturally and correctly (shows credibility)
+        - Explain technical concepts in plain language
+        - Reference market dynamics, cycles, incentives
+        - Connect to how people actually trade/invest
+        
+        CLARITY OVER CLEVERNESS:
+        - Prioritize understanding over entertainment
+        - Short sentences for complex ideas
+        - Paragraph breaks for readability
+        - Use analogies that clarify, not confuse
+        
+        ═══════════════════════════════════════════════════
+        FORMATTING FOR EDUCATIONAL IMPACT
+        ═══════════════════════════════════════════════════
         
         *Italics* (use *asterisks*):
-        - Opening thesis statement
-        - Key quotes or concepts
-        - Emphasis on important phrases
+        - Core principles or the main lesson
+        - The key insight being taught
+        - What readers should remember
         
         **Bold** (use **double asterisks**):
-        - Your 1-2 most critical data points or claims
-        - Numbers and metrics that prove your thesis
-        - "Shocking" facts that make people stop scrolling
+        - Critical data points that prove your lesson
+        - Numbers that support your teaching
+        - The "aha" facts
         
         Bullet points (use - or •):
-        - Lists of supporting evidence
-        - Multiple factors or reasons
-        - Easy-to-scan value propositions
+        - Distinct concepts or principles
+        - Key takeaways to remember
+        - Easy reference for the lesson
         
         Paragraph breaks:
-        - Create white space for readability
-        - Separate different ideas or evidence types
-        - Guide the reader through your argument
+        - Separate different concepts
+        - Create breathing room for learning
+        - Guide readers through the lesson progression
         
         ═══════════════════════════════════════════════════
-        WRITING STYLE REQUIREMENTS
+        OUTPUT REQUIREMENTS
         ═══════════════════════════════════════════════════
         
-        TONE: Confident, data-driven, assertive (not hype-y)
-        - State facts with conviction
-        - Let the data speak for itself
-        - Avoid unnecessary qualifiers ("might," "could," "possibly")
-        - Use present tense for immediacy
+        Create a SINGLE, LONG-FORM piece with:
         
-        LANGUAGE: Clear and accessible
-        - Explain technical terms in parentheses immediately
-        - Use analogies to familiar concepts when helpful
-        - Short sentences for impact. Longer ones for context.
-        - No jargon walls - a smart beginner should follow along
-        
-        SPECIFICITY: Always choose concrete over vague
-        - "100x from $4m to $440m" NOT "grew significantly"
-        - "3rd most-traded memecoin" NOT "very popular"
-        - "4 months ago" NOT "recently"
-        - "80% of the time" NOT "usually"
+        - 900-1500 characters (substantial, readable)
+        - Educational focus: teaches something concrete
+        - Natural, engaging flow (not formulaic)
+        - At least 5-7 specific data points from research
         
         ═══════════════════════════════════════════════════
-        OUTPUT FORMAT
-        ═══════════════════════════════════════════════════
-        
-        Create a SINGLE, LONG-FORM piece (not a numbered thread) with:
-        
-        - 800-1500 characters total (substantial but readable)
-        - Strategic formatting throughout (italics, bold, bullets)
-        - Clear paragraph breaks for visual flow
-        - A narrative arc that builds to a conclusion
-        - At least 3-5 specific data points from research
-        - Simple language that beginners can understand
-        
-        ═══════════════════════════════════════════════════
-        QUALITY CHECKLIST
+        QUALITY CHECKLIST FOR KAITO
         ═══════════════════════════════════════════════════
         
         Before submitting, verify:
         
-        ✓ Opening thesis is italicized and memorable
-        ✓ 1-2 critical claims are bolded for emphasis
-        ✓ At least 5 specific data points or metrics included
-        ✓ Bullet list format used for supporting evidence
-        ✓ Clear paragraph breaks create visual breathing room
-        ✓ Language is simple enough for crypto beginners
-        ✓ Tone is confident and data-driven, not hype-y
-        ✓ Every claim is backed by research materials
-        ✓ Reads smoothly from thesis → evidence → conclusion
-        ✓ Would make someone stop scrolling and read carefully
+        ✓ Opens with a clear learning opportunity or misconception to correct
+        ✓ Teaches a principle, mechanism, or pattern (not just facts)
+        ✓ At least 5-7 specific data points included from research
+        ✓ Explains the "why" behind concepts, not just the "what"
+        ✓ Provides real crypto examples or applications
+        ✓ Uses accurate terminology (shows credibility for Kaito)
+        ✓ Identifies a knowledge gap most traders/investors have
+        ✓ Concludes with actionable understanding
+        ✓ Formatted for easy scanning and reference
+        ✓ Every claim backed by research materials
+        ✓ Would make someone want to screenshot and save it
+        ✓ Teaches something valuable, not just entertaining
+        ✓ Could serve as educational reference material
+        ✓ Demonstrates expertise and depth
         
         ═══════════════════════════════════════════════════
         
-        Now create a compelling analysis of {topic} for {self.project_name} that combines the clarity of great research with the punch of bold formatting. Make it impossible to ignore.
+        Now create an educational crypto thread about {topic} for {self.project_name} that teaches readers something valuable they didn't know. Make it clear, credible, and worth saving. Optimize for Kaito's educational rewards by combining genuine learning value with engaging delivery that makes complex concepts understandable.
         """
         
         response = self.llm.invoke([HumanMessage(content=prompt)])
@@ -318,4 +335,4 @@ class SimpleContentCreator:
 
 def create_content_system(groq_api_key: str):
     """Initialize the content creation system"""
-    return SimpleContentCreator(groq_api_key)
+    return CryptoContentCreator(groq_api_key)
