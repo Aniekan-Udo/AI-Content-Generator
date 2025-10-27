@@ -19,10 +19,13 @@ class CryptoContentCreator:
             raise ValueError("GROQ API key is required")
         
         self.llm = ChatGroq(model="llama-3.3-70b-versatile", api_key=API_KEY)
+        
+        # Fix for the embedding model initialization
         self.embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-mpnet-base-v2",
-            model_kwargs={'device': 'cpu'},
-            encode_kwargs={'normalize_embeddings': True}
+            model_kwargs={'device': 'cpu', 'trust_remote_code': True},
+            encode_kwargs={'normalize_embeddings': True},
+            cache_folder=None  # Let it use default cache
         )
         
         self.text_splitter = RecursiveCharacterTextSplitter(
