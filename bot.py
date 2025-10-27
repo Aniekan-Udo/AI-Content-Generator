@@ -3,7 +3,6 @@ import time
 from typing import List
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document 
 from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
@@ -13,6 +12,84 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+def get_embeddings():
+    """Try multiple embedding models with fallback options"""
+    
+    # Option 1: Try with sentence-transformers directly (most reliable)
+    try:
+        from sentence_transformers import SentenceTransformer
+        from langchain_community.embeddings import HuggingFaceEmbeddings
+        
+        class CustomEmbeddings(HuggingFaceEmbeddings):
+            def __init__(self):
+                # Initialize directly without going through parent __init__
+                from sentence_transformers import SentenceTransformer
+                self.client = SentenceTransformer(
+                    'sentence-transformers/all-mpnet-base-v2',
+                    device='cpu'
+                )
+                self.model_name = 'sentence-transformers/all-mpnet-base-v2'
+            
+            def embed_documents(self, texts):
+                embeddings = self.client.encode(
+                    texts,
+                    normalize_embeddings=True,
+                    show_progress_bar=False
+                )
+                return embeddings.tolist()
+            
+            def embed_query(self, text):
+                embedding = self.client.encode(
+                    [text],
+                    normalize_embeddings=True,
+                    show_progress_bar=False
+                )
+                return embedding[0].tolist()
+        
+        print("✓ Using custom sentence-transformers embeddings")
+        return CustomEmbeddings()
+        
+    except Exception as e:
+        print(f"Custom embeddings failed: {e}")
+    
+    # Option 2: Try standard HuggingFaceEmbeddings with different model
+    try:
+        from langchain_huggingface import HuggingFaceEmbeddings
+        embeddings = HuggingFaceEmbeddings(
+            model_name="BAAI/bge-small-en-v1.5",
+            model_kwargs={'device': 'cpu'},
+            encode_kwargs={'normalize_embeddings': True}
+        )
+        print("✓ Using BAAI/bge-small-en-v1.5 embeddings")
+        return embeddings
+    except Exception as e:
+        print(f"BAAI embeddings failed: {e}")
+    
+    # Option 3: Try with explicit torch settings
+    try:
+        import torch
+        torch.set_default_dtype(torch.float32)
+        
+        from langchain_huggingface import HuggingFaceEmbeddings
+        embeddings = HuggingFaceEmbeddings(
+            model_name="all-MiniLM-L6-v2",
+            model_kwargs={'device': 'cpu'},
+            encode_kwargs={'normalize_embeddings': True}
+        )
+        print("✓ Using all-MiniLM-L6-v2 embeddings")
+        return embeddings
+    except Exception as e:
+        print(f"MiniLM embeddings failed: {e}")
+    
+    
+    raise Exception(
+        "Could not initialize any embedding model. Please try:\n"
+        "1. pip install --upgrade sentence-transformers transformers torch\n"
+        "2. pip install torch --index-url https://download.pytorch.org/whl/cpu\n"
+        "3. Or set OPENAI_API_KEY in .env for OpenAI embeddings"
+    )
+
+
 class CryptoContentCreator:
     def __init__(self, API_KEY: str):
         if not API_KEY:
@@ -20,13 +97,9 @@ class CryptoContentCreator:
         
         self.llm = ChatGroq(model="llama-3.3-70b-versatile", api_key=API_KEY)
         
-        # Fix for the embedding model initialization
-        self.embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-mpnet-base-v2",
-            model_kwargs={'device': 'cpu', 'trust_remote_code': True},
-            encode_kwargs={'normalize_embeddings': True},
-            cache_folder=None  # Let it use default cache
-        )
+        # Use the robust embedding initialization
+        print("Initializing embeddings...")
+        self.embeddings = get_embeddings()
         
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=800,
