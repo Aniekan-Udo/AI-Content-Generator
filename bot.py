@@ -21,8 +21,10 @@ class CryptoContentCreator:
         self.llm = ChatGroq(model="llama-3.3-70b-versatile", api_key=API_KEY)
         self.embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-mpnet-base-v2",
-            model_kwargs={'device': 'cpu'}
+            model_kwargs={'device': 'cpu'},
+            encode_kwargs={'normalize_embeddings': True}
         )
+        
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=800,
             chunk_overlap=200
