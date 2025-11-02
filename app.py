@@ -5,50 +5,251 @@ import time
 from typing import List
 import PyPDF2
 from io import BytesIO
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from datetime import datetime
+import re
+
 load_dotenv()
 
-import os
+# Environment setup
 os.environ["USER_AGENT"] = os.getenv("USER_AGENT", "ai-content-generator/0.1")
-
-# To remove the system has reached its maximum watch limit
 os.environ['STREAMLIT_SERVER_FILE_WATCHER_TYPE'] = 'none'
 
-# Hardcoded API key
-GROQ_API_KEY = st.secrets["API_KEY"]
+# API key
+GROQ_API_KEY = st.secrets.get("API_KEY") or os.getenv("API_KEY")
 if not GROQ_API_KEY:
-    raise ValueError("API_KEY environment variable not set.")
+    raise ValueError("API_KEY not found in secrets or environment variables.")
 
-# Import your existing bot class
+# Database URL
+DATABASE_URL = st.secrets.get("DATABASE_URL") or os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL not found in secrets or environment variables.")
+
+# Import the bot
 try:
-    from bot import CryptoContentCreator
-    print("Successfully imported CryptoContentCreator")
+    from bot import MultiUserContentCreator, TWEET_TEMPLATES
+    print("Successfully imported MultiUserContentCreator")
 except ImportError as e:
-    st.error(f"Could not import CryptoContentCreator from bot.py: {e}")
+    st.error(f"Could not import from bot.py: {e}")
     st.stop()
+
+
+# ============================================
+# USER AUTHENTICATION SYSTEM
+# ============================================
+
+class UserAuthSystem:
+    def __init__(self, db_url):
+        self.db_url = db_url
+        self.init_database()
+    
+    def get_connection(self):
+        """Create database connection"""
+        return psycopg2.connect(self.db_url)
+    
+    def init_database(self):
+        """Create users table if it doesn't exist"""
+        try:
+            conn = self.get_connection()
+            cur = conn.cursor()
+            
+            cur.execute('''CREATE TABLE IF NOT EXISTS users
+                         (id SERIAL PRIMARY KEY,
+                          email VARCHAR(255) UNIQUE NOT NULL,
+                          created_at TIMESTAMP NOT NULL,
+                          last_login TIMESTAMP NOT NULL,
+                          usage_count INTEGER DEFAULT 0)''')
+            
+            # Create index on email for faster lookups
+            cur.execute('''CREATE INDEX IF NOT EXISTS idx_users_email 
+                           ON users(email)''')
+            
+            conn.commit()
+            cur.close()
+            conn.close()
+        except Exception as e:
+            st.error(f"Database initialization error: {e}")
+    
+    def validate_email(self, email):
+        """Simple email validation"""
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        return re.match(pattern, email) is not None
+    
+    def add_user(self, email):
+        """Add new user or update last login"""
+        try:
+            conn = self.get_connection()
+            cur = conn.cursor()
+            
+            try:
+                # Try to insert new user
+                cur.execute('''INSERT INTO users (email, created_at, last_login) 
+                               VALUES (%s, %s, %s)''',
+                            (email, datetime.now(), datetime.now()))
+                conn.commit()
+                cur.close()
+                conn.close()
+                return {"success": True, "new_user": True}
+            except psycopg2.IntegrityError:
+                # User already exists, update last login
+                conn.rollback()
+                cur.execute('''UPDATE users 
+                               SET last_login = %s 
+                               WHERE email = %s''',
+                            (datetime.now(), email))
+                conn.commit()
+                cur.close()
+                conn.close()
+                return {"success": True, "new_user": False}
+        except Exception as e:
+            st.error(f"Error adding user: {e}")
+            return {"success": False, "new_user": False}
+    
+    def increment_usage(self, email):
+        """Increment usage count for analytics"""
+        try:
+            conn = self.get_connection()
+            cur = conn.cursor()
+            cur.execute('''UPDATE users 
+                           SET usage_count = usage_count + 1 
+                           WHERE email = %s''', (email,))
+            conn.commit()
+            cur.close()
+            conn.close()
+        except Exception as e:
+            st.error(f"Error incrementing usage: {e}")
+    
+    def get_user_stats(self):
+        """Get total users and usage stats"""
+        try:
+            conn = self.get_connection()
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            
+            cur.execute("SELECT COUNT(*) as total_users FROM users")
+            total_users = cur.fetchone()['total_users']
+            
+            cur.execute("SELECT COALESCE(SUM(usage_count), 0) as total_usage FROM users")
+            total_usage = cur.fetchone()['total_usage']
+            
+            cur.close()
+            conn.close()
+            return {"total_users": total_users, "total_usage": total_usage}
+        except Exception as e:
+            st.error(f"Error getting stats: {e}")
+            return {"total_users": 0, "total_usage": 0}
+
+
+def show_email_gate():
+    """Show email collection screen"""
+    st.title("🧵 AI Twitter Content Creator")
+    
+    st.markdown("""
+    ### Welcome! 👋
+    
+    Create engaging, research-backed Twitter content for crypto projects using AI.
+    
+    **It's completely FREE while in beta!** Just enter your email to get started.
+    """)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("""
+        ### 📝 Templates Available:
+        - Educational
+        - Promotional
+        - Thread
+        - Engagement
+        - Casual
+        - Storytelling
+        """)
+    
+    with col2:
+        st.markdown("""
+        ### 🎯 Features:
+        - Research-backed content
+        - Multiple templates
+        - Custom brand voice
+        - Project management
+        - Content tweaking
+        """)
+    
+    with col3:
+        st.markdown("""
+        ### 📄 Supports:
+        - PDF files
+        - Word documents
+        - Markdown files
+        - Website URLs
+        - Text paste
+        """)
+    
+    st.divider()
+    
+    auth_system = UserAuthSystem(DATABASE_URL)
+    
+    with st.form("email_form"):
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            email = st.text_input(
+                "📧 Enter your email to get started:",
+                placeholder="you@example.com"
+            )
+        
+        with col2:
+            st.write("")  # Spacing
+            st.write("")  # Spacing
+            submit = st.form_submit_button("🚀 Start Creating", use_container_width=True)
+        
+        if submit:
+            if not email:
+                st.error("Please enter your email")
+            elif not auth_system.validate_email(email):
+                st.error("Please enter a valid email address")
+            else:
+                result = auth_system.add_user(email)
+                if result['success']:
+                    st.session_state.user_email = email
+                    st.session_state.email_provided = True
+                    
+                    if result['new_user']:
+                        st.success(f"🎉 Welcome aboard! You're all set.")
+                    else:
+                        st.success(f"👋 Welcome back!")
+                    
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error("Something went wrong. Please try again.")
+    
+    st.divider()
+    st.caption("💡 Free during beta • No credit card required • Cancel anytime")
+
+
+# ============================================
+# FILE PROCESSING
+# ============================================
 
 def extract_file_content(uploaded_file):
     """Extract content from uploaded file"""
     try:
         file_content = uploaded_file.read()
         file_name = uploaded_file.name.lower()
-      
+        
         if file_name.endswith('.txt') or file_name.endswith('.md'):
             return file_content.decode('utf-8')
         elif file_name.endswith('.pdf'):
             try:
-                
                 pdf_reader = PyPDF2.PdfReader(BytesIO(file_content))
                 return "\n".join([page.extract_text() for page in pdf_reader.pages])
-            except ImportError:
-                st.error("PyPDF2 not available")
-                return None
             except Exception as e:
                 st.error(f"Error reading PDF: {str(e)}")
                 return None
         elif file_name.endswith(('.docx', '.doc')):
             try:
                 from docx import Document as DocxDocument
-                from io import BytesIO
                 doc = DocxDocument(BytesIO(file_content))
                 return "\n".join([paragraph.text for paragraph in doc.paragraphs])
             except ImportError:
@@ -67,250 +268,426 @@ def extract_file_content(uploaded_file):
         st.error(f"Error processing {uploaded_file.name}: {str(e)}")
         return None
 
-def process_project_data(creator, project_name, urls_list, uploaded_files, additional_text):
+
+def process_project_data(creator, user_id, project_name, urls_list, uploaded_files, additional_text):
     """Process all project data and setup the creator"""
     try:
+        # First, setup project with URLs if provided
+        if urls_list:
+            result = creator.setup_project(
+                user_id=user_id,
+                project_name=project_name,
+                urls=urls_list,
+                whitepaper_path=None
+            )
+            st.info(f"URLs processed: {result}")
+        
+        # Then add text content if provided
         combined_text_content = ""
-      
+        
         if additional_text and additional_text.strip():
             combined_text_content += additional_text + "\n\n"
-      
+        
         if uploaded_files:
             for uploaded_file in uploaded_files:
                 content = extract_file_content(uploaded_file)
                 if content:
                     combined_text_content += f"\n--- Content from {uploaded_file.name} ---\n\n{content}\n\n"
-      
-        creator.setup_project(
-            project_name=project_name,
-            urls=urls_list,
-            whitepaper_path=None
-        )
-      
+        
+        # Add text content to vector store if we have any
         if combined_text_content.strip():
             from langchain_core.documents import Document
-          
-            if not creator.vector_store:
-                text_doc = Document(page_content=combined_text_content)
-                chunks = creator.text_splitter.split_documents([text_doc])
-              
-                if chunks:
-                    from langchain_community.vectorstores import Chroma
-                    creator.vector_store = Chroma.from_documents(
-                        documents=chunks,
-                        embedding=creator.embeddings,
-                        collection_name=f"{project_name.lower()}_{int(time.time())}"
-                    )
-            else:
-                text_doc = Document(page_content=combined_text_content)
-                chunks = creator.text_splitter.split_documents([text_doc])
-                if chunks:
-                    creator.vector_store.add_documents(chunks)
-      
-        if creator.vector_store:
-            return len(creator.vector_store.get()['ids'])
+            from langchain_community.vectorstores import Chroma
+            
+            text_doc = Document(page_content=combined_text_content)
+            chunks = creator.text_splitter.split_documents([text_doc])
+            
+            if chunks:
+                # Check if project exists
+                persist_dir = creator._get_project_path(user_id, project_name)
+                
+                if user_id in creator.vector_store:
+                    # Add to existing store
+                    creator.vector_store[user_id].add_documents(chunks)
+                    st.info(f"Added {len(chunks)} chunks to existing project")
+                else:
+                    # Create new store
+                    if not urls_list:  # Only create if we didn't already create via URLs
+                        store = Chroma.from_documents(
+                            documents=chunks,
+                            embedding=creator.embeddings,
+                            collection_name=f"{user_id}_{project_name.lower()}",
+                            persist_directory=persist_dir
+                        )
+                        creator.vector_store[user_id] = store
+                        creator.project_name[user_id] = project_name
+                        st.info(f"Created new project with {len(chunks)} chunks")
+        
+        # Return document count
+        if user_id in creator.vector_store:
+            return len(creator.vector_store[user_id].get()['ids'])
         return 0
-      
+        
     except Exception as e:
         st.error(f"Error setting up project: {str(e)}")
+        import traceback
+        st.error(traceback.format_exc())
         return 0
+
+
+# ============================================
+# MAIN APP
+# ============================================
 
 def main():
     st.set_page_config(
         page_title="AI Content Creator",
-        page_icon="🚀",
+        page_icon="🧵",
         layout="wide"
     )
-  
-    st.title("🚀 AI Content Creator")
-    st.markdown("Upload your data and create amazing content!")
-  
+    
+    # Initialize session state for email
+    if 'email_provided' not in st.session_state:
+        st.session_state.email_provided = False
+        st.session_state.user_email = None
+    
+    # Show email gate if not authenticated
+    if not st.session_state.email_provided:
+        show_email_gate()
+        st.stop()
+    
+    # Initialize auth system
+    auth_system = UserAuthSystem(DATABASE_URL)
+    
+    # User is authenticated - show main app
+    st.title("🧵 AI Twitter Content Creator")
+    st.markdown("Create engaging, research-backed Twitter content for crypto projects")
+    
     # Initialize session state
     if 'creator' not in st.session_state:
         try:
-            st.session_state.creator = CryptoContentCreator(GROQ_API_KEY)
+            st.session_state.creator = MultiUserContentCreator(GROQ_API_KEY)
         except Exception as e:
             st.error(f"Error initializing content creator: {str(e)}")
             st.stop()
-          
+    
     if 'data_uploaded' not in st.session_state:
         st.session_state.data_uploaded = False
     if 'project_name' not in st.session_state:
         st.session_state.project_name = ""
-  
-    # Sidebar for data upload
+    if 'user_id' not in st.session_state:
+        st.session_state.user_id = st.session_state.user_email.split('@')[0]  # Use email prefix as user_id
+    
+    # Sidebar for data upload and settings
     with st.sidebar:
-        st.header("📁 Upload Your Data")
-      
+        # User info at top
+        st.markdown(f"### 👤 {st.session_state.user_email}")
+        if st.button("🚪 Logout", use_container_width=True):
+            st.session_state.email_provided = False
+            st.session_state.user_email = None
+            st.session_state.data_uploaded = False
+            st.rerun()
+        
+        st.divider()
+        st.header("📁 Project Setup")
+        
+        # User settings (collapsed by default after first setup)
+        with st.expander("⚙️ User Settings", expanded=not st.session_state.data_uploaded):
+            user_id = st.text_input(
+                "User ID",
+                value=st.session_state.user_id,
+                help="Unique identifier for your account"
+            )
+            
+            default_template = st.selectbox(
+                "Default Template",
+                list(TWEET_TEMPLATES.keys()),
+                help="Your preferred content style"
+            )
+            
+            brand_voice = st.text_area(
+                "Brand Voice (optional)",
+                placeholder="e.g., Technical expert, conversational but precise",
+                help="Describe your desired tone and style"
+            )
+            
+            if st.button("💾 Save User Settings"):
+                st.session_state.user_id = user_id
+                st.session_state.creator.register_user(
+                    user_id,
+                    default_template=default_template,
+                    brand_voice=brand_voice if brand_voice else ""
+                )
+                st.success("✅ User settings saved!")
+        
+        st.divider()
+        
+        # Project data upload
         project_name = st.text_input(
-            "Project Name", 
+            "Project Name",
             value=st.session_state.project_name,
-            placeholder="Enter your project name"
+            placeholder="e.g., bitcoin, ethereum, myproject"
         )
-      
+        
+        # Load existing project option
+        if project_name:
+            projects = st.session_state.creator.list_user_projects(st.session_state.user_id)
+            project_exists = any(p['project_name'].lower() == project_name.lower() for p in projects)
+            
+            if project_exists:
+                st.info(f"📂 Project '{project_name}' exists")
+                if st.button("📥 Load Existing Project"):
+                    with st.spinner("Loading project..."):
+                        success = st.session_state.creator.load_project(
+                            st.session_state.user_id,
+                            project_name
+                        )
+                        if success:
+                            st.session_state.data_uploaded = True
+                            st.session_state.project_name = project_name
+                            st.success("✅ Project loaded!")
+                            st.rerun()
+        
         # URLs
         st.subheader("🔗 Website URLs")
         urls_text = st.text_area(
-            "Add URLs (one per line)", 
-            height=100, 
-            placeholder="https://example.com/docs\nhttps://example.com/whitepaper"
+            "Add URLs (one per line)",
+            height=100,
+            placeholder="https://docs.yourproject.io\nhttps://blog.yourproject.io"
         )
-      
+        
         # File Upload
         st.subheader("📄 Upload Files")
         uploaded_files = st.file_uploader(
-            "Choose files", 
+            "Choose files",
             accept_multiple_files=True,
             type=['txt', 'pdf', 'docx', 'md']
         )
-      
+        
         if uploaded_files:
             st.success(f"✅ {len(uploaded_files)} files ready")
             for file in uploaded_files:
                 st.write(f"• {file.name}")
-      
+        
         # Additional Text
         st.subheader("📝 Paste Content")
         additional_text = st.text_area(
-            "Paste any additional content", 
-            height=100, 
-            placeholder="Paste content here..."
+            "Paste any additional content",
+            height=100,
+            placeholder="Paste documentation, whitepapers, or any relevant text..."
         )
-      
+        
         # Upload Button
         if st.button("🚀 Process Data", type="primary"):
             if not project_name.strip():
                 st.error("Please enter a project name!")
             else:
                 urls_list = [url.strip() for url in urls_text.split('\n') if url.strip()]
-              
+                
                 if not urls_list and not uploaded_files and not additional_text.strip():
                     st.error("Please add at least one data source!")
                 else:
                     with st.spinner("Processing data..."):
                         try:
                             doc_count = process_project_data(
-                                st.session_state.creator, 
-                                project_name, 
-                                urls_list, 
-                                uploaded_files, 
+                                st.session_state.creator,
+                                st.session_state.user_id,
+                                project_name,
+                                urls_list,
+                                uploaded_files,
                                 additional_text
                             )
-                          
+                            
                             if doc_count > 0:
                                 st.session_state.data_uploaded = True
                                 st.session_state.project_name = project_name
-                                st.success(f"✅ Data processed! {doc_count} chunks")
+                                st.success(f"✅ Data processed! {doc_count} chunks in knowledge base")
                             else:
                                 st.error("❌ No data could be processed")
                         except Exception as e:
                             st.error(f"❌ Processing failed: {str(e)}")
-  
+        
+        # Show existing projects
+        if st.session_state.user_id:
+            st.divider()
+            projects = st.session_state.creator.list_user_projects(st.session_state.user_id)
+            if projects:
+                st.subheader("📚 Your Projects")
+                for project in projects:
+                    st.write(f"• {project['project_name']} ({project['urls_count']} sources)")
+        
+        st.divider()
+        st.caption("💡 Free during beta")
+    
     # Main content area
     if not st.session_state.data_uploaded:
-        st.info("👈 Please upload your data first using the sidebar")
+        st.info("👈 Please set up your project first using the sidebar")
         
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
+        
         with col1:
             st.markdown("""
-            ### How it works:
-            1. Add your project name
-            2. Upload your data
-            3. Process the data
-            4. Create content
+            ### 📝 Templates Available:
+            - **Educational**: Deep dives & teaching
+            - **Promotional**: Product launches
+            - **Thread**: Multi-tweet stories
+            - **Engagement**: Questions & discussions
+            - **Casual**: Quick observations
+            - **Storytelling**: Narratives & lessons
             """)
-          
+        
         with col2:
             st.markdown("""
-            ### Supported formats:
-            - PDF files
-            - Word documents  
-            - Website URLs
-            - Text content
+            ### 🎯 How it works:
+            1. Set your user preferences
+            2. Add project name
+            3. Upload documentation (URLs, files, text)
+            4. Process the data
+            5. Create content!
             """)
-      
+        
+        with col3:
+            st.markdown("""
+            ### 📄 Supported formats:
+            - PDF files
+            - Word documents (.docx)
+            - Markdown files (.md)
+            - Text files (.txt)
+            - Website URLs
+            - Direct text paste
+            """)
+    
     else:
         # Content creation interface
         st.header(f"✨ Create Content for {st.session_state.project_name}")
-      
-        user_prompt = st.text_area(
-            "What do you want to write about?", 
+        
+        # Show available templates
+        with st.expander("📋 View Available Templates"):
+            for key, template in TWEET_TEMPLATES.items():
+                st.markdown(f"**{template['name']}** - {template['description']}")
+                st.caption(f"Best for: {template['best_for']}")
+                st.divider()
+        
+        # Content creation form
+        topic = st.text_area(
+            "What topic do you want to write about?",
             height=100,
-            placeholder="e.g., 'Explain how the consensus mechanism works'"
+            placeholder="e.g., 'How our ZK proof system achieves sub-second verification'"
         )
-      
-        col1, col2, col3 = st.columns([2, 2, 1])
-
+        
+        col1, col2, col3 = st.columns(3)
+        
         with col1:
-            content_type = st.selectbox("Content Type", ["Twitter Thread", "Blog Post"])
-
+            template = st.selectbox(
+                "Content Template",
+                list(TWEET_TEMPLATES.keys()),
+                help="Choose the style of content"
+            )
+        
         with col2:
-            if content_type == "Twitter Thread":
-                tweet_length = st.selectbox(
-                    "Tweet length", 
-                    ["short", "medium", "long"], 
-                    index=1,
-                    help="Short: 400-600 chars | Medium: 600-850 chars | Long: 900-1500 chars"
-                )
-            else:
-                blog_length = st.selectbox(
-                    "Blog length", 
-                    ["short", "medium", "long"], 
-                    index=1
-                )
-
+            length = st.selectbox(
+                "Length",
+                ["short", "medium", "long"],
+                index=1,
+                help="Short: 400-600 | Medium: 600-850 | Long: 900-1500 chars"
+            )
+        
         with col3:
-            st.write("")
-            generate_button = st.button("🎯 Generate", type="primary")
-            
-        if generate_button:
-            if not user_prompt.strip():
-                st.error("Please enter what you want to write about!")
+            debug_mode = st.checkbox(
+                "Debug Mode",
+                help="Show research content being used"
+            )
+        
+        if st.button("🎯 Generate Content", type="primary"):
+            if not topic.strip():
+                st.error("Please enter a topic!")
             else:
+                # Track usage
+                auth_system.increment_usage(st.session_state.user_email)
+                
                 with st.spinner("Creating content..."):
                     try:
-                        if content_type == "Twitter Thread":
-                            content = st.session_state.creator.create_twitter_thread(
-                                user_prompt, 
-                                length=tweet_length
-                            )
-                        else:
-                            content = st.session_state.creator.create_blog_post(
-                                user_prompt, 
-                                length=blog_length
-                            )
-                      
+                        content = st.session_state.creator.create_twitter_content(
+                            user_id=st.session_state.user_id,
+                            topic=topic,
+                            template=template,
+                            length=length,
+                            debug=debug_mode
+                        )
+                        
                         if content and not content.startswith("Error:"):
                             st.success("✅ Content generated!")
                             
-                            # Show character count for Twitter threads
-                            if content_type == "Twitter Thread":
-                                char_count = len(content)
-                                st.info(f"📊 Character count: {char_count}")
+                            # Show stats
+                            char_count = len(content)
+                            if template == "thread":
+                                tweet_count = content.count("---TWEET BREAK---") + 1
+                                st.info(f"📊 {tweet_count} tweets | {char_count} total characters")
+                            else:
+                                st.info(f"📊 {char_count} characters")
                             
-                            st.text_area("Generated Content", content, height=500)
+                            # Show content
+                            st.text_area("Generated Content", content, height=400)
                             
-                            file_extension = "txt" if content_type == "Twitter Thread" else "md"
-                            filename = f"{user_prompt[:30].replace(' ', '_')}.{file_extension}"
-                          
+                            # Download button
+                            filename = f"{topic[:30].replace(' ', '_')}_{template}.txt"
                             st.download_button(
-                                label=f"📥 Download {content_type}",
+                                label="📥 Download Content",
                                 data=content,
                                 file_name=filename,
                                 mime="text/plain"
                             )
+                            
+                            # Tweak option
+                            st.divider()
+                            st.subheader("✏️ Tweak Content")
+                            feedback = st.text_area(
+                                "What would you like to change?",
+                                placeholder="e.g., 'Make it more technical' or 'Add more specific examples'"
+                            )
+                            
+                            if st.button("🔄 Regenerate with Feedback"):
+                                if feedback:
+                                    with st.spinner("Tweaking content..."):
+                                        tweaked = st.session_state.creator.tweak_content(
+                                            st.session_state.user_id,
+                                            content,
+                                            feedback
+                                        )
+                                        st.text_area("Tweaked Content", tweaked, height=400)
+                                        st.download_button(
+                                            label="📥 Download Tweaked Content",
+                                            data=tweaked,
+                                            file_name=f"{filename.replace('.txt', '_tweaked.txt')}",
+                                            mime="text/plain"
+                                        )
                         else:
                             st.error("❌ Content generation failed")
                             if content:
                                 st.error(content)
                     except Exception as e:
                         st.error(f"❌ Error: {str(e)}")
+                        import traceback
+                        st.error(traceback.format_exc())
         
         st.divider()
-        if st.button("🔄 Start New Project"):
-            st.session_state.data_uploaded = False
-            st.session_state.project_name = ""
-            st.rerun()
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔄 Start New Project"):
+                st.session_state.data_uploaded = False
+                st.session_state.project_name = ""
+                st.rerun()
+        with col2:
+            if st.button("🗑️ Delete Current Project"):
+                if st.session_state.creator.delete_project(
+                    st.session_state.user_id,
+                    st.session_state.project_name
+                ):
+                    st.session_state.data_uploaded = False
+                    st.session_state.project_name = ""
+                    st.success("Project deleted!")
+                    st.rerun()
+
 
 if __name__ == "__main__":
     try:

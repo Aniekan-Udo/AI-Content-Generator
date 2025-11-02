@@ -15,3 +15,5 @@ numpy
 requests
 beautifulsoup4
 lxml
+docx
+psycopg2-binary
