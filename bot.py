@@ -644,3 +644,41 @@ Rewrite based on feedback while maintaining accuracy. Output ONLY the revised tw
 
 def create_content_system(groq_api_key: str):
     return MultiUserContentCreator(groq_api_key)
+
+
+# ═══════════════════════════════════════════════════
+# USAGE EXAMPLE
+# ═══════════════════════════════════════════════════
+
+if __name__ == "__main__":
+    system = create_content_system(os.getenv("API_KEY"))
+    
+    # Register user
+    system.register_user(
+        "user123",
+        default_template="educational",
+        brand_voice="Technical expert, conversational but precise",
+        preferred_length="medium"
+    )
+    
+    # Setup with project data
+    system.setup_project(
+        "user123", 
+        "cysic",  
+        urls=[],  # Empty list (not empty string!)
+        whitepaper_path=r"C:\Users\HP\Desktop\Twitter Thread Creator\Cysic whitepaper.txt"
+    )
+    
+    # Create content with debug
+    tweet = system.create_twitter_content(
+        user_id="user123",
+        topic="How Cysic Network solves decentralized storage",
+        template="educational",
+        length="long",
+        debug=True
+    )
+    
+    print("\n" + "="*60)
+    print("GENERATED TWEET:")
+    print("="*60)
+    print(tweet)
