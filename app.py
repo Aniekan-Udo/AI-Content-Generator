@@ -61,7 +61,6 @@ class UserAuthSystem:
                           last_login TIMESTAMP NOT NULL,
                           usage_count INTEGER DEFAULT 0)''')
             
-            # Create index on email for faster lookups
             cur.execute('''CREATE INDEX IF NOT EXISTS idx_users_email 
                            ON users(email)''')
             
@@ -83,7 +82,6 @@ class UserAuthSystem:
             cur = conn.cursor()
             
             try:
-                # Try to insert new user
                 cur.execute('''INSERT INTO users (email, created_at, last_login) 
                                VALUES (%s, %s, %s)''',
                             (email, datetime.now(), datetime.now()))
@@ -92,7 +90,6 @@ class UserAuthSystem:
                 conn.close()
                 return {"success": True, "new_user": True}
             except psycopg2.IntegrityError:
-                # User already exists, update last login
                 conn.rollback()
                 cur.execute('''UPDATE users 
                                SET last_login = %s 
@@ -199,8 +196,8 @@ def show_email_gate():
             )
         
         with col2:
-            st.write("")  # Spacing
-            st.write("")  # Spacing
+            st.write("")
+            st.write("")
             submit = st.form_submit_button("🚀 Start Creating", use_container_width=True)
         
         if submit:
@@ -269,50 +266,88 @@ def extract_file_content(uploaded_file):
         return None
 
 
+# ============================================
+# CPU-OPTIMIZED PROJECT DATA PROCESSING
+# ============================================
+
 def process_project_data(creator, user_id, project_name, urls_list, uploaded_files, additional_text):
-    """Process all project data and setup the creator"""
+    """CPU-optimized project data processing with progress tracking"""
     try:
-        # First, setup project with URLs if provided
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        # Calculate total steps
+        total_steps = 0
+        if urls_list: total_steps += 1
+        if uploaded_files: total_steps += len(uploaded_files)
+        if additional_text: total_steps += 1
+        total_steps += 1  # For embedding
+        
+        current_step = 0
+        
+        # ═══ STEP 1: Process URLs ═══
         if urls_list:
+            status_text.text(f"📥 Loading {len(urls_list)} URLs...")
+            status_text.caption("⏳ This may take 15-30 seconds per URL...")
+            
             result = creator.setup_project(
                 user_id=user_id,
                 project_name=project_name,
                 urls=urls_list,
                 whitepaper_path=None
             )
-            st.info(f"URLs processed: {result}")
+            
+            current_step += 1
+            progress_bar.progress(current_step / total_steps)
+            st.info(f"✅ URLs processed: {result}")
         
-        # Then add text content if provided
+        # ═══ STEP 2: Combine text content ═══
         combined_text_content = ""
         
         if additional_text and additional_text.strip():
+            status_text.text("📝 Processing pasted content...")
             combined_text_content += additional_text + "\n\n"
+            current_step += 1
+            progress_bar.progress(current_step / total_steps)
         
+        # ═══ STEP 3: Process uploaded files ═══
         if uploaded_files:
-            for uploaded_file in uploaded_files:
+            for i, uploaded_file in enumerate(uploaded_files):
+                status_text.text(f"📄 Processing file {i+1}/{len(uploaded_files)}: {uploaded_file.name}")
                 content = extract_file_content(uploaded_file)
                 if content:
                     combined_text_content += f"\n--- Content from {uploaded_file.name} ---\n\n{content}\n\n"
+                current_step += 1
+                progress_bar.progress(current_step / total_steps)
         
-        # Add text content to vector store if we have any
+        # ═══ STEP 4: Create embeddings for text content ═══
         if combined_text_content.strip():
             from langchain_core.documents import Document
-            from langchain_community.vectorstores import Chroma
             
             text_doc = Document(page_content=combined_text_content)
             chunks = creator.text_splitter.split_documents([text_doc])
             
+            status_text.text(f"🧠 Creating embeddings for {len(chunks)} chunks...")
+            status_text.caption(f"⏳ Estimated time: {len(chunks) * 0.04:.0f}-{len(chunks) * 0.08:.0f} seconds...")
+            
             if chunks:
-                # Check if project exists
                 persist_dir = creator._get_project_path(user_id, project_name)
                 
                 if user_id in creator.vector_store:
-                    # Add to existing store
-                    creator.vector_store[user_id].add_documents(chunks)
-                    st.info(f"Added {len(chunks)} chunks to existing project")
+                    # Add to existing store with batching
+                    batch_size = 100
+                    for i in range(0, len(chunks), batch_size):
+                        batch = chunks[i:i+batch_size]
+                        creator.vector_store[user_id].add_documents(batch)
+                        progress_current = min(i + batch_size, len(chunks))
+                        status_text.text(f"🧠 Embedding progress: {progress_current}/{len(chunks)} chunks")
+                    
+                    st.info(f"✅ Added {len(chunks)} chunks to existing project")
                 else:
-                    # Create new store
-                    if not urls_list:  # Only create if we didn't already create via URLs
+                    # Create new store (only if no URLs were processed)
+                    if not urls_list:
+                        from langchain_community.vectorstores import Chroma
+                        
                         store = Chroma.from_documents(
                             documents=chunks,
                             embedding=creator.embeddings,
@@ -321,7 +356,14 @@ def process_project_data(creator, user_id, project_name, urls_list, uploaded_fil
                         )
                         creator.vector_store[user_id] = store
                         creator.project_name[user_id] = project_name
-                        st.info(f"Created new project with {len(chunks)} chunks")
+                        st.info(f"✅ Created new project with {len(chunks)} chunks")
+        
+        # ═══ COMPLETE ═══
+        progress_bar.progress(1.0)
+        status_text.text("✅ Processing complete!")
+        time.sleep(0.5)
+        progress_bar.empty()
+        status_text.empty()
         
         # Return document count
         if user_id in creator.vector_store:
@@ -376,7 +418,15 @@ def main():
     if 'project_name' not in st.session_state:
         st.session_state.project_name = ""
     if 'user_id' not in st.session_state:
-        st.session_state.user_id = st.session_state.user_email.split('@')[0]  # Use email prefix as user_id
+        st.session_state.user_id = st.session_state.user_email.split('@')[0]
+    
+    # AUTO-REGISTER USER (FIXED)
+    if st.session_state.user_id not in st.session_state.creator.user_profiles:
+        st.session_state.creator.register_user(
+            st.session_state.user_id,
+            default_template="educational",
+            brand_voice=""
+        )
     
     # Sidebar for data upload and settings
     with st.sidebar:
@@ -391,7 +441,7 @@ def main():
         st.divider()
         st.header("📁 Project Setup")
         
-        # User settings (collapsed by default after first setup)
+        # User settings
         with st.expander("⚙️ User Settings", expanded=not st.session_state.data_uploaded):
             user_id = st.text_input(
                 "User ID",
@@ -517,7 +567,7 @@ def main():
                     st.write(f"• {project['project_name']} ({project['urls_count']} sources)")
         
         st.divider()
-        st.caption("💡 Free during beta")
+        st.caption("💡 Free during beta • CPU optimized")
     
     # Main content area
     if not st.session_state.data_uploaded:
@@ -542,7 +592,7 @@ def main():
             1. Set your user preferences
             2. Add project name
             3. Upload documentation (URLs, files, text)
-            4. Process the data
+            4. Process the data (CPU optimized!)
             5. Create content!
             """)
         
