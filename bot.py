@@ -591,9 +591,9 @@ class MultiUserContentCreator:
         
         # Length specs
         length_specs = {
-            "short": "400-600 characters",
-            "medium": "600-850 characters",
-            "long": "900-1500 characters"
+            "short": "400-600 words",
+            "medium": "600-850 words",
+            "long": "1000-1500 words"
         }
         
         # Build prompt

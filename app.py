@@ -609,7 +609,7 @@ def main():
     
     else:
         # Content creation interface
-        st.header(f"✨ Create Content for {st.session_state.project_name}")
+        st.header(f"Create Content for {st.session_state.project_name}")
         
         # Show available templates
         with st.expander("📋 View Available Templates"):
@@ -639,7 +639,7 @@ def main():
                 "Length",
                 ["short", "medium", "long"],
                 index=1,
-                help="Short: 400-600 | Medium: 600-850 | Long: 900-1500 chars"
+                help="Short: 400-600 | Medium: 600-850 | Long: 900-1500 words"
             )
         
         with col3:
