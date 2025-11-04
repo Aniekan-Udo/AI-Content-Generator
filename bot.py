@@ -270,7 +270,7 @@ class MultiUserContentCreator:
             encode_kwargs={
                 "normalize_embeddings": True,
                 "batch_size": 64,  # Process 64 chunks at once - 50% faster!
-                "show_progress_bar": False
+                #"show_progress_bar": False
             }
         )
 
